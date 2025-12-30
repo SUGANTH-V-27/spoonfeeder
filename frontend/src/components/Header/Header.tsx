@@ -22,7 +22,6 @@ const Header: React.FC<HeaderProps> = ({
   onLogout,
   username: usernameProp,
   email: emailProp,
-  onNavigate,
   currentMode = "normal",
   onModeChange,
   onAdminToggle,
