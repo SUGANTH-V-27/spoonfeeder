@@ -286,12 +286,13 @@ html, body {
 
 /* frontend/src/pages/Auth/auth.css */
 
-.button-container {
+..button-container {
     position: relative;
-    border-radius: 10px; /* Slightly larger than button's border-radius */
-    padding: 2px; /* This will be the border thickness */
-    margin-top: 0; /* Remove top margin */
-    transition: all 0.3s ease;
+    border-radius: 10px;
+    padding: 2px;
+    margin-top: 0;
+    transform: translateY(0);            /* base */
+    transition: transform 0.25s ease;    /* smooth */
     z-index: 1;
 }
 
@@ -307,10 +308,13 @@ html, body {
 
 .button-container:hover:not(.disabled-wrapper) {
     transform: translateY(-2px);
+    transition: transform 0.25s ease;
+    text-align: center;
 }
 
 .button-container:hover:not(.disabled-wrapper)::before {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    transition: 0.2s ease-in;
+    text-align: center;
 }
 
 .button-container button {
@@ -334,8 +338,11 @@ html, body {
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transform: translateY(0) scale(1);         /* base */
+    transition: transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    opacity 0.25s ease;
     position: relative;
     overflow: visible;
 }
@@ -355,14 +362,14 @@ html, body {
 }
 
 .right-panel button:hover:not(:disabled) {
-    background: #1d4ed8;
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5),
-    0 0 20px rgba(37, 99, 235, 0.3);
+    text-align: center;
 }
 
 .right-panel button:hover:not(:disabled)::before {
     opacity: 1;
+    transition: 0.2s ease-in;
+    text-align: center;
 }
 
 .right-panel button:active:not(:disabled) {
@@ -517,6 +524,8 @@ html, body {
     flex-direction: column;
     align-items: center;
     gap: 16px;
+    position: relative;
+    z-index: 50;
 }
 
 .contact-label {
@@ -535,12 +544,17 @@ html, body {
 .contact-icon {
     color: var(--text-secondary);
     text-decoration: none;
-    transition: color 0.2s ease;
+    transition:
+            color 0.3s ease,       /* smooth color change */
+            transform 0.3s ease;   /* smooth movement/scale */
 }
 
 .contact-icon:hover {
     color: var(--primary-accent);
+    transform: translateY(-2px) scale(1.1);
+    cursor:pointer;
 }
+
 
 .doll.sleep .eyes span {
     height: 2px;
@@ -702,8 +716,8 @@ input[type="password"]::-webkit-clear-button {
     color: #ef4444;
     font-size: 0.92rem;
     text-align: center;
-    margin-bottom: 14px;
-    padding: 10px 14px;
+    margin-bottom: 19px;
+    padding: 10px 15px;
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.18);
     border-radius: 8px;
@@ -834,7 +848,7 @@ input[type="password"]::-webkit-clear-button {
 .password-match-icon {
     position: absolute;
     right: 16px;
-    top: 34%;
+    top: 48%;
     transform: translateY(-50%);
     font-size: 18px;
     user-select: none;

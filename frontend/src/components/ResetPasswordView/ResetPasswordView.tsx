@@ -1,16 +1,31 @@
-/* ResetPasswordView component: used when frontend path is /reset-password?token=... */
-import {useState} from "react";
-import { motion} from "framer-motion";
-import './ResetPasswordView.css';
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { resetPassword } from "../../api/auth";
+import "./ResetPasswordView.css";
 
-
-export function ResetPasswordView({ token, onComplete }: { token: string; onComplete: () => void; }) {
+export function ResetPasswordView({
+                                      token,
+                                      onComplete,
+                                  }: {
+    token: string;
+    onComplete: (email?: string) => void;
+}) {
     const [password, setPassword] = useState("");
     const [confirm, setConfirm] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
     const [err, setErr] = useState<string | null>(null);
-    const API_BASE = (import.meta.env.VITE_API_BASE as string) || "https://spoonfeeder.onrender.com/api";
+
+    const passwordsMatch = useMemo(
+        () => confirm.length > 0 && password === confirm,
+        [password, confirm]
+    );
+    const passwordsMismatch = useMemo(
+        () => confirm.length > 0 && password !== confirm,
+        [password, confirm]
+    );
+
     const submit = async (e?: React.FormEvent) => {
         e?.preventDefault();
         setErr(null);
@@ -25,34 +40,80 @@ export function ResetPasswordView({ token, onComplete }: { token: string; onComp
         }
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE}/auth/reset-password/${encodeURIComponent(token)}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
-            });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j?.error || "Failed to reset password");
-            setMsg("Password reset successful. Redirecting to sign in...");
-            setTimeout(() => onComplete(), 1200);
+            const response = await resetPassword(token, password);
+            setMsg("Password reset successful. Redirecting to login...");
+            setTimeout(() => {
+                window.history.replaceState({}, "", "/");
+                onComplete(response?.user?.email);
+            }, 1300);
         } catch (e: any) {
-            setErr(e?.message || "Server error");
+            setErr(e?.response?.data?.error || e?.message || "Server error");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <motion.div className="login-card reset-card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.form
+            className="login-card reset-card"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onSubmit={submit}
+        >
             <h2>Reset Password</h2>
             <p className="subtitle">Set a new secure password for your account</p>
+            <div className="input-group">
+                <input
+                    aria-label="New password"
+                    type={showConfirm ? "text" : "password"}
+                    name="password"
+                    placeholder="New password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                />
+                <button
+                    type="button"
+                    className="icon-button toggle"
+                    aria-label={showConfirm ? "Hide password" : "Show password"}
+                    onClick={() => setShowConfirm((v) => !v)}
+                >
+                    {showConfirm ? "HIDE" : "SHOW"}
+                </button>
+            </div>
 
-            <input aria-label="New password" type="password" name="password" placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input aria-label="Confirm new password" type="password" name="confirm" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <div className="input-group">
+                <input
+                    aria-label="Confirm new password"
+                    type={showConfirm ? "text" : "password"}
+                    name="confirm"
+                    placeholder="Confirm new password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    autoComplete="new-password"
+                />
+                {passwordsMatch && <span className="status-icon success">✔</span>}
+                {passwordsMismatch && <span className="status-icon error">✖</span>}
+            </div>
 
-            <button onClick={submit}  disabled={loading}>{loading ? "Saving..." : "Set new password"}</button>
+            <button type="submit" disabled={loading}>
+                {loading ? (
+                    <span className="spinner" aria-hidden="true"></span>
+                ) : (
+                    "Set new password"
+                )}
+            </button>
 
-            {err && <div className="error-message" role="alert">{err}</div>}
-            {msg && <div className="success-message" role="status">{msg}</div>}
-        </motion.div>
+            {err && (
+                <div className="error-message" role="alert">
+                    {err}
+                </div>
+            )}
+            {msg && (
+                <div className="success-message" role="status">
+                    {msg}
+                </div>
+            )}
+        </motion.form>
     );
 }

@@ -125,6 +125,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 
+// backend/src/controllers/auth.ts
 export const forgotPassword = async (req: Request, res: Response) => {
     try {
         // Validate input - stripUnknown: true to remove any extra fields
@@ -137,13 +138,12 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
         const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
         if (userRes.rows.length === 0) {
-            // Do not reveal whether email exists
-            return res.status(200).json({ message: "If that email exists, a reset link was sent" });
+            return res.status(404).json({ error: "No account found with that email" });
         }
 
         const userId = userRes.rows[0].id;
         const token = crypto.randomBytes(32).toString("hex");
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
         await pool.query(
             "INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1,$2,$3)",
@@ -160,17 +160,24 @@ export const forgotPassword = async (req: Request, res: Response) => {
             },
         });
 
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+        const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
 
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM || "no-reply@example.com",
+            from: `"${process.env.EMAIL_FROM}" <${process.env.SMTP_USER}>`,
             to: email,
-            subject: "Password reset",
-            text: `Click to reset your password: ${resetUrl}`,
-            html: `<p>Click to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
+            subject: "Reset your Spoonfeeder password",
+            text: `You requested a password reset.\n\nReset your password using this link:\n${resetUrl}\n\nIf you did not request this, ignore this email.`,
+            html: `
+        <p>Hello,</p>
+        <p>You requested a password reset for your Spoonfeeder account.</p>
+        <p><a href="${resetUrl}">Click here to reset your password</a></p>
+        <p>This link will expire in 60 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <p>— Spoonfeeder Team</p>
+      `,
         });
 
-        return res.status(200).json({ message: "If that email exists, a reset link was sent" });
+        return res.status(200).json({ message: "Reset email sent" });
     } catch (err) {
         console.error("forgotPassword error:", err);
         return res.status(500).json({ error: "Internal server error" });
@@ -183,6 +190,22 @@ export const resetPassword = async (req: Request, res: Response) => {
         const { token } = req.params;
         const { password } = req.body;
         if (!token || !password) return res.status(400).json({ error: "Invalid request" });
+
+        // Validate password strength
+        const passwordSchema = Joi.string()
+            .min(8)
+            .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+            .required()
+            .messages({
+                'string.min': 'Password must be at least 8 characters long',
+                'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+                'any.required': 'Password is required'
+            });
+
+        const { error } = passwordSchema.validate(password);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
 
         const tokenRes = await pool.query("SELECT user_id, expires_at FROM password_resets WHERE token = $1", [token]);
         if (tokenRes.rows.length === 0) return res.status(400).json({ error: "Invalid or expired token" });
@@ -204,9 +227,14 @@ export const resetPassword = async (req: Request, res: Response) => {
         if (!jwtsecret) return res.status(500).json({ error: "Server JWT config missing" });
 
         const newToken = jwt.sign({ userId: user.id, email: user.email }, jwtsecret, { expiresIn: "5h" });
-        return res.json({ message: "Password reset successful", token: newToken });
+        return res.json({
+            message: "Password reset successful",
+            token: newToken,
+            user: { id: user.id, email: user.email }
+        });
     } catch (err) {
         console.error("resetPassword error:", err);
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
