@@ -28,6 +28,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
+  isAuthenticating: boolean;
   login: (data: LoginData) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Check if current user is admin
   const isAdmin = user ? ADMIN_EMAILS.includes(user.email) : false;
@@ -83,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const handleLogin = async (data: LoginData): Promise<boolean> => {
+    setIsAuthenticating(true);
     try {
       const response: AuthResponse = await login(data);
 
@@ -92,18 +95,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
 
-      return true; // ✅ success signal
+      return true;
     } catch (error) {
       console.error('Login failed:', error);
-      throw error; // UI will handle error display
+      throw error;
     } finally {
-      setIsLoading(false);
+      setIsAuthenticating(false);
     }
   };
 
   const handleRegister = async (data: RegisterData): Promise<boolean> => {
     try {
-      setIsLoading(true);
+      setIsAuthenticating(true);
       const response: AuthResponse = await register(data);
 
       setToken(response.token);
@@ -117,7 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Registration failed:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+      setIsAuthenticating(false);
     }
   };
 
@@ -135,6 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!token && !!user,
     isAdmin,
     isLoading,
+    isAuthenticating,
     login: handleLogin,
     register: handleRegister,
     logout: handleLogout,

@@ -19,43 +19,51 @@
 }
 
 /* 2. Back Button - Fixed positioning bugs */
-.back-button {
-  position: absolute;
-  /* 25% from top and 25% from left is the exact center of the top-left region */
-  top: 25%;
-  left: 25%;
-  /* Translate -50% ensures the center of the button sits on that 25% point */
-  transform: translate(-50%, -50%);
+/* Update in frontend/src/pages/CollegeDepartment/collegeDepartment.css */
 
-  z-index: 1000;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid var(--border-subtle);
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+.back-button {
+    position: absolute;
+    top: 20%;
+    left: 20%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    cursor: pointer;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: none;
 }
 
 .back-button svg {
-  width: 22px;
-  height: 22px;
+    width: 22px;
+    height: 22px;
+    transition: color 0.2s ease;
+    cursor: pointer;
 }
 
 .back-button:hover {
-  background: var(--primary-accent);
-  border-color: var(--primary-accent);
-  color: white;
-  transform: translate(-50%, -50%) scale(1.1); /* Keep translate on hover */
-  box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+    background: transparent;
+    color: var(--primary-accent);
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: none;
+    cursor: pointer;
 }
+
+.back-button:hover svg {
+    cursor: pointer;
+}
+
+
 
 .back-button::before {
     display: none;
+    cursor: pointer;
 }
 
 /* 3. Main Card */
