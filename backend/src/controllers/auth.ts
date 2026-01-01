@@ -138,7 +138,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
         const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
         if (userRes.rows.length === 0) {
-            return res.status(404).json({ error: "No account found with that email" });
+            return res.status(404).json({ error: "Invalid Credentials" });
         }
 
         const userId = userRes.rows[0].id;

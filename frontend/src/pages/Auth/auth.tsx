@@ -95,9 +95,7 @@ interface LoginProps {
 }
 
 // Use the same API base as the rest of the app
-import api from '../../api/api';
 
-const API_BASE = api.defaults.baseURL;
 
 const isValidEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());

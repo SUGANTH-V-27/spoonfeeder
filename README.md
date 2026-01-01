@@ -75,7 +75,7 @@ A full-stack learning management system built with React, TypeScript, Node.js, a
 - User authentication and authorization
 - Course and topic management
 - Video content integration
-- Resource management (PDFs, presentations)
+- Resource management (PDFs,documents, presentations)
 - Practice questions and answers
 - Admin panel for content management
 - Responsive design with multiple view modes

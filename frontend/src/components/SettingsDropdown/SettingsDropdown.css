@@ -125,8 +125,6 @@
 }
 
 /* Constrain dropdown list width */
-.settings-select::-webkit-listbox,
-.settings-select::-moz-listbox,
 .settings-select option {
     width: 100% !important;
     max-width: 100% !important;
@@ -144,17 +142,6 @@
     color: #D1D5DB !important;
 }
 
-
-.settings-select::-webkit-listbox {
-    background-color: #1A1A1C !important;
-    border: 1px solid #26262A;
-    border-radius: 4px;
-}
-
-/* Firefox specific styling */
-.settings-select::-moz-listbox {
-    background-color: #1A1A1C !important;
-}
 
 /* Custom dropdown arrow */
 .settings-select {
