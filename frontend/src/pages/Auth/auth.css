@@ -176,11 +176,13 @@ html, body {
 
 .right-panel {
     width: 420px;
-    padding: 80px 70px;
+    padding: 40px 70px;
     background: transparent;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+    min-height: 100vh;
     will-change: contents;
     transform: translateZ(0);
 }
@@ -478,6 +480,7 @@ html, body {
     overflow: visible;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    margin: auto 0;
 }
 
 .login-card h2 {
@@ -485,6 +488,9 @@ html, body {
     font-weight: 600;
     margin-bottom: 16px;
     text-align: center;
+}
+.login-card p{
+    margin-top: 9px;
 }
 
 .subtitle {
@@ -866,6 +872,292 @@ input[type="password"]::-webkit-clear-button {
 
 .password-match-icon.hidden {
     display: none;
+}
+@media (max-width: 1024px) {
+    .login-page {
+        flex-direction: column;
+    }
+
+    .brand {
+        position: static;
+        padding: 24px;
+        font-size: 36px;
+        text-align: center;
+    }
+
+    .brand-hero {
+        display: none;
+    }
+
+    .left-panel {
+        display: none;
+    }
+
+    .right-panel {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 40px 32px;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+    }
+}
+
+/* Mobile (landscape and smaller tablets) */
+@media (max-width: 768px) {
+    .brand {
+        position: relative;
+        top: auto;
+        left: auto;
+        margin-top: 40px;
+        margin-bottom: 30px;
+        text-align: center;
+        font-size: 32px;
+    }
+
+    .brand-title {
+        margin-bottom: 0;
+    }
+
+    .brand-hero {
+        display: none;
+    }
+
+    .left-panel {
+        display: none;
+    }
+
+    .right-panel {
+        width: 100%;
+        padding: 0 24px 40px;
+        min-height: auto;
+    }
+
+    .login-card {
+        max-width: 100%;
+        margin-top:100px;
+    }
+
+    .login-card h2 {
+        font-size: 26px;
+    }
+
+    .subtitle {
+        font-size: 13px;
+        margin-bottom: 32px;
+    }
+
+    .right-panel input {
+        padding: 14px 16px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    .right-panel button {
+        padding: 16px;
+        font-size: 16px;
+    }
+
+    .contact-section {
+        margin-top: 32px;
+    }
+
+    .contact-icons {
+        gap: 20px;
+    }
+}
+
+/* Mobile (portrait) */
+@media (max-width: 480px) {
+    .brand {
+        font-size: 28px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+
+    .right-panel {
+        padding: 0px 20px 30px;
+        min-height: 100vh;
+    }
+
+    .login-card h2 {
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+    .login-card p{
+        margin-top: 20px;
+    }
+    .email-enter {
+        font-size: 24px;
+    }
+
+    .subtitle {
+        font-size: 12px;
+        margin-bottom: 28px;
+    }
+
+    .right-panel input {
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        font-size: 16px;
+    }
+
+    .password-wrapper input,
+    .confirm-password-wrapper input {
+        padding-right: 60px;
+    }
+
+    .show-pwd {
+        right: 14px;
+        font-size: 11px;
+    }
+
+    .password-match-icon {
+        right: 14px;
+        font-size: 16px;
+    }
+
+    .right-panel button {
+        padding: 14px;
+        font-size: 15px;
+    }
+
+    .button-container {
+        margin-top: 4px;
+    }
+
+    .forgot-password {
+        font-size: 11px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+    }
+
+    .signup {
+        margin-top: 24px;
+        font-size: 12px;
+    }
+
+    .contact-section {
+        margin-top: 28px;
+        gap: 12px;
+    }
+
+    .contact-label {
+        font-size: 11px;
+    }
+
+    .contact-icons {
+        gap: 16px;
+    }
+
+    .contact-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .error-message,
+    .success-message {
+        font-size: 0.85rem;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+    }
+
+    .divider {
+        margin: 20px 0;
+        font-size: 11px;
+    }
+}
+
+/* Small mobile devices */
+@media (max-width: 360px) {
+    .brand {
+        font-size: 20px;
+    }
+
+    .right-panel {
+        padding: 20px 16px;
+        min-height: 100vh;
+    }
+
+    .login-card h2 {
+        font-size: 22px;
+    }
+
+    .email-enter {
+        font-size: 22px;
+    }
+
+    .subtitle {
+        font-size: 11px;
+        margin-bottom: 24px;
+    }
+
+    .right-panel input {
+        padding: 10px 12px;
+        font-size: 15px;
+    }
+
+    .right-panel button {
+        padding: 12px;
+        font-size: 14px;
+    }
+
+    .contact-icons {
+        gap: 14px;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-height: 600px) and (orientation: landscape) {
+    .brand {
+        padding: 12px;
+        font-size: 20px;
+    }
+
+    .right-panel {
+        padding: 16px 24px;
+        min-height: 100vh;
+    }
+
+    .login-card h2 {
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+
+    .subtitle {
+        margin-bottom: 20px;
+    }
+
+    .right-panel input {
+        padding: 10px 14px;
+        margin-bottom: 12px;
+    }
+
+    .right-panel button {
+        padding: 10px;
+    }
+
+    .contact-section {
+        margin-top: 20px;
+    }
+
+    .signup {
+        margin-top: 16px;
+    }
+}
+
+/* Ensure touch-friendly tap targets */
+@media (hover: none) and (pointer: coarse) {
+    .contact-icon,
+    .show-pwd,
+    .forgot-password,
+    .signup span {
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 
