@@ -15,7 +15,24 @@
     padding: 0;
     font-family: "Inter", system-ui, sans-serif;
 }
+*:focus:not(:focus-visible) {
+    outline: none;
+}
 
+button,
+a,
+div,
+span {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+button:active,
+a:active,
+div:active,
+span:active {
+    background-color: transparent;
+}
 html, body {
     height: 100%;
     margin: 0;
