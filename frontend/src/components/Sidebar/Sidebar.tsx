@@ -55,11 +55,11 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleEditStart = (item: any) => {
     setEditingItemId(item.id);
-    setEditingName(item.label);
+    setEditingName(item.label.toUpperCase());
   };
 
   const handleEditSave = (item: any) => {
-    if (editingName.trim() && editingName.trim() !== item.label) {
+    if (editingName.trim() && editingName.trim() !== item.label.toUpperCase()) {
       onEditItem?.(item, editingName.trim());
     }
     setEditingItemId(null);
@@ -181,7 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </svg>
           </button>
           <div className="sidebar-header-title">
-            {mode === 'topics' ? courseName : topicName}
+            {mode === 'topics' ? courseName?.toUpperCase() : topicName?.toUpperCase()}
           </div>
         </div>
       )}
@@ -254,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       ) : (
                         <>
-                          <span className="nav-label">{item.label}</span>
+                          <span className="nav-label">{item.label.toUpperCase()}</span>
                           {item.description && !isCollapsed && (
                             <span className="nav-description">{item.description}</span>
                           )}
@@ -269,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         e.stopPropagation();
                         const itemType = mode === 'courses' ? 'course' : mode === 'topics' ? 'topic' : 'subtopic';
                         const confirmed = window.confirm(
-                          `Are you sure you want to delete this ${itemType}?\n\n"${item.label}"\n\nThis action cannot be undone and will also delete all related content.`
+                          `Are you sure you want to delete this ${itemType}?\n\n"${item.label.toUpperCase()}"\n\nThis action cannot be undone and will also delete all related content.`
                         );
                         if (confirmed) {
                           onDeleteItem(item);

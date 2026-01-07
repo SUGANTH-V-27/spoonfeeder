@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import api from '../../api/api';
 import './SettingsDropdown.css';
 import { useHierarchy } from '../../context/HeirarchyContext.tsx';
 
@@ -8,7 +8,6 @@ interface SettingsDropdownProps {
 }
 
 export default function SettingsDropdown({ onSave }: SettingsDropdownProps) {
-    const BASE_BACKEND_URL = (import.meta.env.VITE_API_BASE as string) || "https://spoonfeeders-backend.vercel.app/api";
     const [open, setOpen] = useState(true);
     const [collegesData, setCollegesData] = useState<any[]>([]);
     const [departmentsData, setDepartmentsData] = useState<any[]>([]);
@@ -31,9 +30,7 @@ export default function SettingsDropdown({ onSave }: SettingsDropdownProps) {
         setTimeout(() => collegeRef.current?.focus(), 0);
 
         setLoadingColleges(true);
-        axios.get(`${BASE_BACKEND_URL}/colleges`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
+        api.get("/colleges")
             .then(res => {
                 if (Array.isArray(res.data)) setCollegesData(res.data);
             })
@@ -62,9 +59,8 @@ export default function SettingsDropdown({ onSave }: SettingsDropdownProps) {
         console.log('Found college object:', collegeObj);
 
         setLoadingDepartments(true);
-        axios.get(`${BASE_BACKEND_URL}/departments`, {
-            params: { collegeId: collegeObj.id },
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        api.get("/departments", {
+            params: { collegeId: collegeObj.id }
         })
             .then(res => {
                 console.log('Departments response:', res.data);
@@ -99,9 +95,7 @@ export default function SettingsDropdown({ onSave }: SettingsDropdownProps) {
         }
 
         setLoadingSemesters(true);
-        axios.get(`${BASE_BACKEND_URL}/semesters?departmentId=${deptObj.id}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
+        api.get(`/semesters?departmentId=${deptObj.id}`)
             .then(res => {
                 if (Array.isArray(res.data)) setSemestersData(res.data);
             })
