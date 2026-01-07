@@ -9,7 +9,7 @@ import { getDepartments, createDepartment } from "../../api/department";
 import { createSemester, getSemestersByNames } from "../../api/semester";
 import { createCourse, deleteCourse } from "../../api/courses";
 import { createTopic, deleteTopic } from "../../api/topics";
-import { createSubtopic, deleteSubtopic, createSubtopicContent, getSubtopicContent, deleteSubtopicContent } from "../../api/subtopics";
+import { createSubtopic, deleteSubtopic, updateSubtopic, createSubtopicContent, getSubtopicContent, deleteSubtopicContent } from "../../api/subtopics";
 import "./ContentView.css";
 import { processMathExpressions, isStandaloneMathLine } from "../../utils/mathProcessor";
 import { convertLatexToUnicode } from "../../utils/latexToUnicode";
@@ -319,6 +319,26 @@ const ContentView: React.FC<ContentViewProps> = ({
       console.log('Item deleted:', result);
     } catch (error) {
       console.error('Error deleting item:', error);
+    }
+  };
+
+  const handleEditSubtopic = async (item: any, newName: string) => {
+    try {
+      const result = await updateSubtopic(item.id, newName);
+
+      // Refresh subtopics to get updated data
+      if (selectedTopic) {
+        loadSubtopics(selectedTopic.id);
+      }
+
+      // Update selectedSubtopic if it's the one being edited
+      if (selectedSubtopic && selectedSubtopic.id === item.id) {
+        setSelectedSubtopic({ ...selectedSubtopic, name: newName, label: newName });
+      }
+
+      console.log('Subtopic updated:', result);
+    } catch (error) {
+      console.error('Error updating subtopic:', error);
     }
   };
 
@@ -636,10 +656,10 @@ const ContentView: React.FC<ContentViewProps> = ({
 
   // Calculate optimal tooltip position to stay within viewport
 
-  // Keyboard shortcut for fullscreen (Shift+F)
+  // Keyboard shortcut for fullscreen (Alt+F)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.shiftKey && event.key.toLowerCase() === 'f') {
+      if (event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
         // Blur any focused iframe to ensure shortcuts work
         if (document.activeElement instanceof HTMLIFrameElement) {
@@ -654,7 +674,7 @@ const ContentView: React.FC<ContentViewProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [isFullscreen]); // Include dependencies
 
-  // Keyboard shortcut for closing resources (Shift+X), exiting resource fullscreen (Escape), and toggling resource fullscreen (Shift+S)
+  // Keyboard shortcut for closing resources (Alt+X), exiting resource fullscreen (Escape), and toggling resource fullscreen (Alt+S)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Handle resource fullscreen exit (Escape key)
@@ -669,8 +689,8 @@ const ContentView: React.FC<ContentViewProps> = ({
         return;
       }
 
-      // Handle resource fullscreen toggle (Shift+S)
-      if (event.shiftKey && event.key.toLowerCase() === 's') {
+      // Handle resource fullscreen toggle (Alt+S)
+      if (event.altKey && event.key.toLowerCase() === 's') {
         event.preventDefault();
         // Blur any focused iframe to ensure shortcuts work
         if (document.activeElement instanceof HTMLIFrameElement) {
@@ -689,9 +709,9 @@ const ContentView: React.FC<ContentViewProps> = ({
         return;
       }
 
-      if (event.shiftKey && event.key.toLowerCase() === 'x' && openResources.size > 0) {
+      if (event.altKey && event.key.toLowerCase() === 'x' && openResources.size > 0) {
         // Debug: Log the event
-        console.log('Shift+X pressed, openResources:', openResources.size);
+        console.log('Alt+X pressed, openResources:', openResources.size);
 
           event.preventDefault();
         // Close all open resources regardless of focus
@@ -1699,7 +1719,7 @@ const ContentView: React.FC<ContentViewProps> = ({
                                   setLoadingResources(prev => new Set([...prev, res.id])); // Show loading for fullscreen
                                   setFullscreenResource(res.id);
                                 }}
-                                title="Fullscreen (Shift+S)"
+                                title="Fullscreen (Alt+S)"
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
@@ -1714,7 +1734,7 @@ const ContentView: React.FC<ContentViewProps> = ({
                                     return newSet;
                                   });
                                 }}
-                                title="Shift+X"
+                                title="Alt+X"
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <line x1="18" y1="6" x2="6" y2="18"/>
@@ -2289,7 +2309,7 @@ const ContentView: React.FC<ContentViewProps> = ({
             <button
               className="resource-fullscreen-exit-btn"
               onClick={() => setFullscreenResource(null)}
-              title="Exit Fullscreen (Shift+S)"
+              title="Exit Fullscreen (Alt+S)"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 0 2-2h3M3 16h3a2 2 0 0 0 2 2v3"/>
@@ -2401,6 +2421,7 @@ const ContentView: React.FC<ContentViewProps> = ({
            isLoadingCourses)
         }
         onDeleteItem={isAdmin ? handleDeleteItem : undefined}
+        onEditItem={isAdmin ? handleEditSubtopic : undefined}
         onAddItem={isAdmin ? handleAddItem : undefined}
         showAddForm={showAddForm}
         addFormData={addFormData}

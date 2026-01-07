@@ -7,7 +7,7 @@ import { addDepartment, getDepartments, deleteDepartment } from "../controllers/
 import { getsemesters, addSemester, deleteSemester } from "../controllers/semester";
 import { getCourse, addCourse, deleteCourse } from "../controllers/course";
 import { getTopics, addTopic, deleteTopic } from "../controllers/topics";
-import { getSubtopics, addSubtopic, deleteSubtopic } from "../controllers/subtopics";
+import { getSubtopics, addSubtopic, deleteSubtopic, updateSubtopic } from "../controllers/subtopics";
 import { register, login, forgotPassword, resetPassword } from "../controllers/auth";
 import { getSubtopicContent, addSubtopicContent, deleteSubtopicContent } from "../controllers/subtopicContent";
 
@@ -36,6 +36,7 @@ router.post("/topics", requireAdmin, addTopic);
 router.delete("/topics/:id", requireAdmin, deleteTopic);
 router.get("/subtopics", requireAuth, getSubtopics);
 router.post("/subtopics", requireAdmin, addSubtopic);
+router.put("/subtopics/:id", requireAdmin, updateSubtopic);
 router.delete("/subtopics/:id", requireAdmin, deleteSubtopic);
 router.get("/subtopics/:subtopicId/content", requireAuth, getSubtopicContent);
 router.post("/subtopics/:subtopicId/content", requireAdmin, addSubtopicContent);

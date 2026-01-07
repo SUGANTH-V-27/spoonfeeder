@@ -69,3 +69,5 @@ temp/
 *.dump
 
 courses.txt
+
+seed.js

@@ -152,7 +152,7 @@ const Header: React.FC<HeaderProps> = ({
             <button
               className="fullscreen-btn"
               onClick={onFullscreenToggle}
-              title="Shift+F"
+              title="Alt+F"
             >
             <svg
               width="18"

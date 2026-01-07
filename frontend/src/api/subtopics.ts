@@ -12,6 +12,10 @@ export const createSubtopic = (name: string, topicId: number) =>
 export const deleteSubtopic = (id: number) =>
   api.delete(`/subtopics/${id}`);
 
+// Update a subtopic
+export const updateSubtopic = (id: number, name: string) =>
+  api.put(`/subtopics/${id}`, { name });
+
 // Get subtopic content
 export const getSubtopicContent = (subtopicId: number) =>
   api.get(`/subtopics/${subtopicId}/content`);

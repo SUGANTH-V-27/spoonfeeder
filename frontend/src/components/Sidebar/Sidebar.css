@@ -347,6 +347,113 @@
   color: #dc2626;
 }
 
+/* ===== Admin Edit Button ===== */
+.nav-edit-btn {
+  position: absolute;
+  right: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-item:hover .nav-edit-btn {
+  opacity: 1;
+}
+
+.nav-edit-btn:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #d97706;
+}
+
+/* Hide edit and delete buttons when editing is active */
+.nav-item.editing .nav-edit-btn,
+.nav-item.editing .nav-delete-btn {
+  display: none !important;
+}
+
+/* ===== Inline Edit Styles ===== */
+.nav-edit-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex: 1;
+}
+
+.nav-edit-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  min-width: 0;
+}
+
+.nav-edit-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.nav-edit-buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nav-edit-save,
+.nav-edit-cancel {
+  padding: 4px 6px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+
+.nav-edit-save {
+  background: #10b981;
+  color: white;
+}
+
+.nav-edit-save:hover:not(:disabled) {
+  background: #059669;
+}
+
+.nav-edit-save:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.nav-edit-cancel {
+  background: #6b7280;
+  color: white;
+}
+
+.nav-edit-cancel:hover {
+  background: #4b5563;
+}
+
 .nav-link {
   flex: none; /* Override flex for uniform sizing */
   margin-right: 0; /* Remove margin for uniform sizing */

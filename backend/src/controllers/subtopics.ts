@@ -72,3 +72,33 @@ export const deleteSubtopic = async(req: Request, res: Response) => {
     res.status(500).json({error:"Internal server error"});
   }
 };
+
+// PUT /api/subtopics/:id  body: { "name": "..." }
+export const updateSubtopic = async(req: Request, res: Response) => {
+  try{
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Subtopic ID is required" });
+    }
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ error: "Name is required and cannot be empty" });
+    }
+
+    const result = await pool.query(
+      "UPDATE subtopics SET name = $1 WHERE id = $2 RETURNING id, topic_id as \"topicId\", name",
+      [name.trim(), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Subtopic not found" });
+    }
+
+    res.json(result.rows[0]);
+  }catch(error){
+    console.error("Error updating subtopic:", error);
+    res.status(500).json({error:"Internal server error"});
+  }
+};

@@ -15,6 +15,7 @@ export interface SidebarProps {
   selectedItemId?: string;
   onBackClick?: () => void;
   onDeleteItem?: (item: any) => void;
+  onEditItem?: (item: any, newName: string) => void;
   onAddItem?: (mode: string) => void;
   showAddForm?: { mode: string; visible: boolean };
   addFormData?: { name: string; courseId: string; topicId: string };
@@ -34,6 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedItemId,
   onBackClick,
   onDeleteItem,
+  onEditItem,
   onAddItem,
   showAddForm,
   addFormData,
@@ -47,7 +49,35 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { isAdmin } = useAuth();
   const [sidebarWidth, setSidebarWidth] = React.useState(280);
   const [isResizing, setIsResizing] = React.useState(false);
+  const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
+  const [editingName, setEditingName] = React.useState('');
   const sidebarRef = React.useRef<HTMLElement>(null);
+
+  const handleEditStart = (item: any) => {
+    setEditingItemId(item.id);
+    setEditingName(item.label);
+  };
+
+  const handleEditSave = (item: any) => {
+    if (editingName.trim() && editingName.trim() !== item.label) {
+      onEditItem?.(item, editingName.trim());
+    }
+    setEditingItemId(null);
+    setEditingName('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingItemId(null);
+    setEditingName('');
+  };
+
+  const handleEditKeyPress = (e: React.KeyboardEvent, item: any) => {
+    if (e.key === 'Enter') {
+      handleEditSave(item);
+    } else if (e.key === 'Escape') {
+      handleEditCancel();
+    }
+  };
 
   // Icon for collapsed state based on mode
   const getModeIcon = () => {
@@ -79,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       const newWidth = Math.min(Math.max(200, e.clientX), 500);
       setSidebarWidth(newWidth);
     };
@@ -177,19 +207,58 @@ const Sidebar: React.FC<SidebarProps> = ({
               </li>
             )}
             {items.map((item) => (
-              <li
-                key={item.id}
-                className="nav-item"
-              >
+            <li
+              key={item.id}
+              className={`nav-item ${editingItemId === item.id ? 'editing' : ''}`}
+            >
                 <div className="nav-item-container">
                   <button
                     onClick={() => onItemClick?.(item)}
                     className={`nav-link ${selectedItemId === item.id ? 'active' : ''}`}
                   >
                     <div className="nav-content">
-                      <span className="nav-label">{item.label}</span>
-                      {item.description && !isCollapsed && (
-                        <span className="nav-description">{item.description}</span>
+                      {editingItemId === item.id ? (
+                        <div className="nav-edit-container">
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => handleEditKeyPress(e, item)}
+                            className="nav-edit-input"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="nav-edit-buttons">
+                            <button
+                              className="nav-edit-save"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditSave(item);
+                              }}
+                              disabled={!editingName.trim()}
+                              title="Save"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              className="nav-edit-cancel"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditCancel();
+                              }}
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="nav-label">{item.label}</span>
+                          {item.description && !isCollapsed && (
+                            <span className="nav-description">{item.description}</span>
+                          )}
+                        </>
                       )}
                     </div>
                   </button>
@@ -212,6 +281,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         <line x1="10" y1="11" x2="10" y2="17"/>
                         <line x1="14" y1="11" x2="14" y2="17"/>
+                      </svg>
+                    </button>
+                  )}
+                  {isAdmin && onEditItem && mode === 'subtopics' && (
+                    <button
+                      className="nav-edit-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditStart(item);
+                      }}
+                      title="Edit subtopic name"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
                     </button>
                   )}
