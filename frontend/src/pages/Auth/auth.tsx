@@ -326,7 +326,10 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: 'transform, opacity'}}
                         >
-                            <div className="brand-title">Spoonfeeder</div>
+                            <div className="brand-logo-container">
+                                <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
+                                <div className="brand-title">Spoonfeeder</div>
+                            </div>
                             <div className="brand-hero">
                                 Structured learning<br/>
                                 Zero Distraction
@@ -343,7 +346,10 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: 'transform, opacity'}}
                         >
-                            <div className="brand-title">Spoonfeeder</div>
+                            <div className="brand-logo-container">
+                                <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
+                                <div className="brand-title">Spoonfeeder</div>
+                            </div>
                             <div className="brand-hero">
                                 Start your journey<br/>
                                 Create your account
@@ -360,12 +366,15 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: 'transform, opacity'}}
                         >
-                            <div className="brand-title">Spoonfeeder</div>
+                            <div className="brand-logo-container">
+                                <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
+                                <div className="brand-title">Spoonfeeder</div>
+                            </div>
                             <div className="brand-hero">
                                 Forgot password?<br/>
                                 No worries.
                                 <span className="brand-subtitle">
-    Enter your email and we’ll help you get back in.
+    Enter your email and we'll help you get back in.
   </span>
                             </div>
 
