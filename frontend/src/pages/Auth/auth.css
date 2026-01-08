@@ -18,6 +18,9 @@
 *:focus:not(:focus-visible) {
     outline: none;
 }
+/*.login-page {*/
+/*    justify-content: center;*/
+/*}*/
 
 button,
 a,
@@ -67,6 +70,7 @@ html, body {
 .left-panel {
     flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
@@ -192,6 +196,8 @@ html, body {
 }
 
 .right-panel {
+    box-sizing: border-box;
+    align-self: center;
     width: 420px;
     padding: 40px 70px;
     background: transparent;
@@ -485,7 +491,7 @@ html, body {
 
 .brand-hero {
     margin-top: 220px;
-    margin-left: 100px;
+    margin-left: 0;
     max-width: 420px;
     font-size: 42px;
     font-weight: 600;
@@ -916,6 +922,63 @@ input[type="password"]::-webkit-clear-button {
 .password-match-icon.hidden {
     display: none;
 }
+@media (min-width: 1441px) and (max-width: 1536px) {
+    .scene {
+        transform: translateX(200px);
+    }
+
+    .brand {
+        font-size: 52px;
+    }
+
+    .brand-hero {
+        font-size: 40px;
+    }
+}
+
+@media (min-width: 1367px) and (max-width: 1440px) {
+    .scene {
+        transform: translateX(160px);
+    }
+
+    .brand {
+        left: 60px;
+        font-size: 48px;
+    }
+
+    .brand-hero {
+        margin-left: 60px;
+        font-size: 38px;
+    }
+
+    .right-panel {
+        width: 400px;
+        padding: 40px 56px;
+    }
+}
+
+@media (max-width: 1366px) {
+    .scene {
+        transform: translateX(120px);
+        scale: 0.9;
+    }
+
+    .brand {
+        left: 40px;
+        font-size: 44px;
+    }
+
+    .brand-hero {
+        margin-left: 40px;
+        font-size: 34px;
+    }
+
+    .right-panel {
+        width: 380px;
+        padding: 36px 48px;
+    }
+}
+
 @media (max-width: 1024px) {
     .login-page {
         flex-direction: column;
@@ -1209,5 +1272,21 @@ input[type="password"]::-webkit-clear-button {
         justify-content: center;
     }
 }
+@media (max-width: 1200px) {
+    .scene {
+        display: none;
+    }
+}
+@media (max-width: 1500px) {
+    .brand,
+    .brand-hero {
+        text-align: center;
+        max-width: 420px;
+        margin-left: 0;
+    }
+}
+
+
+
 
 
