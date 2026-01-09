@@ -47,10 +47,9 @@ const ContentView: React.FC<ContentViewProps> = ({
   isFullscreen = false,
   onFullscreenToggle
 }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isMobileSideBarOpen, setIsMobileSideBarOpen] = useState(false);
-  const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    // Removed unused isMobile state
+    const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
   const [openResources, setOpenResources] = useState<Set<number>>(new Set());
   const [fullscreenResource, setFullscreenResource] = useState<number | null>(null);
@@ -125,16 +124,7 @@ const ContentView: React.FC<ContentViewProps> = ({
       }
     };
   }, []);
-  //mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
+  // Removed mobile detection code
   const { selectedSubtopic, hierarchy, selectedCourse, selectedTopic, courses, topics, subtopics, setSelectedCourse, setSelectedTopic, setSelectedSubtopic, loadTopics, loadSubtopics, loadContent, loadCourses, setHierarchy, clearTopicCache, clearSubtopicCache } = useHierarchy();
 
   // Debug logging for topics state (only in development)
@@ -632,13 +622,9 @@ const ContentView: React.FC<ContentViewProps> = ({
   };
 
 
-  const handleMenuToggle = () => {
-    if(isMobile) {
-      setIsMobileSideBarOpen(!isMobileSideBarOpen);
-    } else {
-      setSidebarCollapsed(!sidebarCollapsed);
-    }
-  };
+    const handleMenuToggle = () => {
+    setSidebarCollapsed(prev => !prev);
+    };
 
   const handleFullscreenToggle = () => {
     if (!isFullscreen) {
@@ -731,8 +717,8 @@ const ContentView: React.FC<ContentViewProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [openResources, fullscreenResource]);
 
-  // Add keyboard shortcuts for sidebar toggle (Ctrl+Z) and highlight undo (Ctrl+Z when toolbar is visible)
-  useEffect(() => {
+    // Add keyboard shortcuts for sidebar toggle (Ctrl+Z) and highlight undo (Ctrl+Z when toolbar is visible)
+    useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === 'z') {
         event.preventDefault();
@@ -740,16 +726,14 @@ const ContentView: React.FC<ContentViewProps> = ({
         if (document.activeElement instanceof HTMLIFrameElement) {
           document.activeElement.blur();
         }
-
-        // Toggle sidebar
-        setSidebarCollapsed(!sidebarCollapsed);
+        setSidebarCollapsed(prev => !prev);
       }
     };
 
     // Use document event listener with capture to work even when focused in iframes
     document.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [sidebarCollapsed]);
+    }, []);
 
 
   const handleNavigate = (path: string) => {
@@ -2401,33 +2385,34 @@ const ContentView: React.FC<ContentViewProps> = ({
               selectedCourse ? handleTopicClick :
               handleCourseClick
             }
-        selectedItemId={
-          selectedTopic
-            ? (selectedSubtopic ? selectedSubtopic.id : undefined)
-            : selectedCourse
-              ? selectedCourse.id
-              : undefined
-        }
-        onBackClick={
-          selectedTopic ? handleBackToTopics :
-          selectedCourse ? handleBackToCourses :
-          undefined
-        }
-        topicName={selectedTopic ? selectedTopic.name : undefined}
-        courseName={selectedCourse ? selectedCourse.name : undefined}
-        isLoading={
-          (selectedTopic ? isLoadingSubtopics :
-           selectedCourse ? isLoadingTopics :
-           isLoadingCourses)
-        }
-        onDeleteItem={isAdmin ? handleDeleteItem : undefined}
-        onEditItem={isAdmin ? handleEditSubtopic : undefined}
-        onAddItem={isAdmin ? handleAddItem : undefined}
-        showAddForm={showAddForm}
-        addFormData={addFormData}
-        onAddFormChange={setAddFormData}
-        onAddSubmit={handleAddSubmit}
-        onCancelAdd={() => setShowAddForm({ mode: '', visible: false })}
+            selectedItemId={
+              selectedTopic
+                ? (selectedSubtopic ? selectedSubtopic.id : undefined)
+                : selectedCourse
+                  ? selectedCourse.id
+                  : undefined
+            }
+            onBackClick={
+              selectedTopic ? handleBackToTopics :
+              selectedCourse ? handleBackToCourses :
+              undefined
+            }
+            topicName={selectedTopic ? selectedTopic.name : undefined}
+            courseName={selectedCourse ? selectedCourse.name : undefined}
+            isLoading={
+              (selectedTopic ? isLoadingSubtopics :
+               selectedCourse ? isLoadingTopics :
+               isLoadingCourses)
+            }
+            onDeleteItem={isAdmin ? handleDeleteItem : undefined}
+            onEditItem={isAdmin ? handleEditSubtopic : undefined}
+            onAddItem={isAdmin ? handleAddItem : undefined}
+            showAddForm={showAddForm}
+            addFormData={addFormData}
+            onAddFormChange={setAddFormData}
+            onAddSubmit={handleAddSubmit}
+            onCancelAdd={() => setShowAddForm({ mode: '', visible: false })}
+            onCloseSidebar={() => setSidebarCollapsed(true)}
           />
         );
       })()}
@@ -2583,3 +2568,4 @@ const ContentView: React.FC<ContentViewProps> = ({
 };
 
 export default ContentView;
+

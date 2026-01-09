@@ -10,6 +10,7 @@ export interface SidebarProps {
     label: string;
     icon?: React.ReactNode;
     description?: string;
+    subTopics?: any[];
   }>;
   onItemClick?: (item: any) => void;
   selectedItemId?: string;
@@ -25,6 +26,7 @@ export interface SidebarProps {
   topicName?: string;
   courseName?: string;
   isLoading?: boolean;
+  onCloseSidebar?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -44,7 +46,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCancelAdd,
   topicName,
   courseName,
-  isLoading = false
+  isLoading = false,
+  onCloseSidebar
 }) => {
   const { isAdmin } = useAuth();
   const [sidebarWidth, setSidebarWidth] = React.useState(280);
@@ -52,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState('');
   const sidebarRef = React.useRef<HTMLElement>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
 
   const handleEditStart = (item: any) => {
     setEditingItemId(item.id);
@@ -134,31 +138,56 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [isResizing]);
 
   React.useEffect(() => {
-    const contentMain = document.querySelector('.content-main');
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  React.useEffect(() => {
+    const contentMain = document.querySelector('.content-main') as HTMLElement | null;
     if (!contentMain) return;
 
+    if (isMobile) {
+      if (sidebarRef.current) {
+        sidebarRef.current.style.width = '100%';
+        sidebarRef.current.style.transform = isCollapsed ? 'translateX(-100%)' : 'translateX(0)';
+      }
+      contentMain.style.marginLeft = '0';
+      contentMain.style.width = '100vw';
+      return;
+    }
+
     if (isCollapsed) {
-      // When collapsed, use fixed 64px sidebar width
       if (sidebarRef.current) {
         sidebarRef.current.style.width = '64px';
       }
-      (contentMain as HTMLElement).style.marginLeft = '104px'; // 64px + 40px gap
-      (contentMain as HTMLElement).style.width = 'calc(100vw - 104px)';
+      contentMain.style.marginLeft = '104px';
+      contentMain.style.width = 'calc(100vw - 104px)';
     } else {
-      // When expanded, use dynamic sidebar width
       if (sidebarRef.current) {
         sidebarRef.current.style.width = `${sidebarWidth}px`;
       }
-      (contentMain as HTMLElement).style.marginLeft = `${sidebarWidth + 40}px`;
-      (contentMain as HTMLElement).style.width = `calc(100vw - ${sidebarWidth + 40}px)`;
+      contentMain.style.marginLeft = `${sidebarWidth + 40}px`;
+      contentMain.style.width = `calc(100vw - ${sidebarWidth + 40}px)`;
     }
-  }, [sidebarWidth, isCollapsed]);
+  }, [sidebarWidth, isCollapsed, isMobile]);
+
+  const handleItemClick = (item: any) => {
+    onItemClick?.(item);
+    const isFinalSubtopic =
+      mode === 'subtopics' && (!item.subTopics || item.subTopics.length === 0);
+    if (isFinalSubtopic) {
+      onCloseSidebar?.();
+    }
+  };
 
   return (
     <aside
       ref={sidebarRef}
-      className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}
-      style={!isCollapsed ? { width: `${sidebarWidth}px` } : undefined}
+      className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile && !isCollapsed ? 'mobile-open' : ''}`}
+      style={!isCollapsed && !isMobile ? { width: `${sidebarWidth}px` } : undefined}
     >
       {!isCollapsed && (
         <div
@@ -207,13 +236,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               </li>
             )}
             {items.map((item) => (
-            <li
-              key={item.id}
-              className={`nav-item ${editingItemId === item.id ? 'editing' : ''}`}
-            >
+              <li
+                key={item.id}
+                className={`nav-item ${editingItemId === item.id ? 'editing' : ''}`}
+              >
                 <div className="nav-item-container">
                   <button
-                    onClick={() => onItemClick?.(item)}
+                    onClick={() => handleItemClick(item)}
                     className={`nav-link ${selectedItemId === item.id ? 'active' : ''}`}
                   >
                     <div className="nav-content">
