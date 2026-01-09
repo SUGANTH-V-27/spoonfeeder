@@ -83,8 +83,9 @@ const Header: React.FC<HeaderProps> = ({
       <div className="header-left">
         <div className="menu-toggle-container">
           <button
+            type="button"
             className="menu-toggle-btn"
-            onClick={onMenuToggle}
+            onClick={() => onMenuToggle?.()}
             title="Ctrl+Z"
             aria-label="Toggle sidebar (Ctrl+Z)"
           >

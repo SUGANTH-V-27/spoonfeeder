@@ -10,7 +10,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 50;
+  z-index: 100; /* raise above content for mobile */
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
 }
@@ -292,14 +292,25 @@
 }
 
 /* ===== Responsive Design ===== */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 240px;
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
+    width: 100%;
+    max-width: 100%;
+    left: 0;
+    top: 64px;
+    height: calc(100vh - 64px);
     transform: translateX(-100%);
-    transition: transform 0.3s ease, width 0.3s ease;
+    transition: transform 0.28s ease;
   }
 
   .sidebar.mobile-open {
-    transform: translateX(0);
+    transform: translateX(0); /* cover full width when opened */
   }
 
   .sidebar.collapsed {
@@ -308,6 +319,12 @@
 
   .sidebar-resize-handle {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding-bottom: 16px;
   }
 }
 
@@ -585,4 +602,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sidebar-back-icon:focus,
+.sidebar-back-icon:focus-visible,
+.sidebar button:focus,
+.sidebar button:focus-visible,
+.nav-link:focus,
+.nav-link:focus-visible,
+.nav-delete-btn:focus,
+.nav-delete-btn:focus-visible,
+.nav-edit-btn:focus,
+.nav-edit-btn:focus-visible,
+.nav-add-btn:focus,
+.nav-add-btn:focus-visible,
+.menu-toggle-btn:focus,
+.menu-toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
