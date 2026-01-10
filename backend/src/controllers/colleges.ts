@@ -3,12 +3,15 @@ import pool from "../db/connection";
 
 // Controller function
 export const getColleges = async (_req: Request, res: Response) => {
-  try{
+  try {
     const result = await pool.query("SELECT id,name FROM colleges ORDER BY id");
+    if (!result.rows || result.rows.length === 0) {
+      return res.json([]); // empty, not an error
+    }
     res.json(result.rows);
-  }catch(err){
-    console.error("Error fetching college");
-    res.status(500).json({error:"Internal server error"});
+  } catch (err) {
+    console.error("Error fetching college", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 

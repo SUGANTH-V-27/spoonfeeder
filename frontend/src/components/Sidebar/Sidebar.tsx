@@ -158,10 +158,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   React.useEffect(() => {
+    if (isMobile && editingItemId) {
+      setEditingItemId(null);
+      setEditingName('');
+    }
+  }, [isMobile, editingItemId]);
+
+  React.useEffect(() => {
     const contentMain = document.querySelector('.content-main') as HTMLElement | null;
     if (!contentMain) return;
 
-    const collapsedWidth = 64;
 
     if (isMobile) {
       if (sidebarRef.current) {
@@ -354,7 +360,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         )}
                       </div>
                     </button>
-                    {isAdmin && onDeleteItem && (
+                    {isAdmin && onDeleteItem && !isMobile && (
                       <button
                         className="nav-delete-btn"
                         onClick={(e) => {
@@ -376,7 +382,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </svg>
                       </button>
                     )}
-                    {isAdmin && onEditItem && mode === 'subtopics' && (
+                    {isAdmin && onEditItem && mode === 'subtopics' && !isMobile && (
                       <button
                         className="nav-edit-btn"
                         onClick={(e) => {

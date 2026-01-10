@@ -27,16 +27,19 @@ export const getDepartments = async(_req:Request,res:Response) =>{
         WHERE LOWER(TRIM(c.name)) = LOWER(TRIM($1))
         ORDER BY d.id
       `;
-      params = [collegeNameParam];
+      params = [collegeNameParam.trim()];
     } else {
       return res.status(400).json({ error: "Either collegeId or collegeName parameter is required" });
     }
 
     const result = await pool.query(query, params);
+    if (!result.rows || result.rows.length === 0) {
+      return res.json([]); // empty list is fine
+    }
     return res.json(result.rows);
   }catch(err)
   {
-    console.error("Failed to fetch departments",err);
+    console.error("Failed to fetch departments", err);
     res.status(500).json({error:"Internal server error"});
   }
 };

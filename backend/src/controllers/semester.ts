@@ -1,8 +1,8 @@
 import { Request,Response } from "express";
 import pool from "../db/connection";
 
-  export const getsemesters = async (_req:Request,res:Response) =>{
-    try{
+export const getsemesters = async (_req:Request,res:Response) =>{
+  try{
     const departmentIdParam = _req.query.departmentId as string;
     const departmentNameParam = _req.query.departmentName as string;
     const collegeNameParam = _req.query.collegeName as string;
@@ -19,7 +19,8 @@ import pool from "../db/connection";
       query = "SELECT id, department_id as \"departmentId\", name FROM semesters WHERE department_id = $1 ORDER BY id";
       params = [departmentId];
     } else if (departmentNameParam && collegeNameParam) {
-      // Get by department and college names (case-insensitive, trim whitespace)
+      const deptName = departmentNameParam.trim();
+      const collegeName = collegeNameParam.trim();
       query = `
         SELECT s.id, s.department_id as "departmentId", s.name
         FROM semesters s
@@ -28,14 +29,14 @@ import pool from "../db/connection";
         WHERE LOWER(TRIM(d.name)) = LOWER(TRIM($1)) AND LOWER(TRIM(c.name)) = LOWER(TRIM($2))
         ORDER BY s.id
       `;
-      params = [departmentNameParam.trim(), collegeNameParam.trim()];
+      params = [deptName, collegeName];
     } else {
       return res.status(400).json({ error: "Either departmentId or (departmentName and collegeName) parameters are required" });
     }
 
     const result = await pool.query(query, params);
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "No semesters found for the given criteria" });
+      return res.json([]); // empty list is fine
     }
     return res.json(result.rows);
   }catch(err)

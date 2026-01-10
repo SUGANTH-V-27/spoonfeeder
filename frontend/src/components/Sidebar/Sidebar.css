@@ -323,6 +323,13 @@
   .sidebar-resize-handle {
     display: none;
   }
+
+  .nav-edit-btn,
+  .nav-edit-container,
+  .nav-edit-input,
+  .nav-edit-buttons {
+    display: none !important;
+  }
 }
 
 @media (max-width: 480px) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './collegeDepartment.css';
 import { getColleges } from '../../api/colleges';
 import { getDepartmentsByCollegeName } from '../../api/department';
@@ -27,8 +27,11 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const [colleges, setColleges] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [semesters, setSemesters] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState({ colleges: false, departments: false, semesters: false });
   const [error, setError] = useState<string>('');
+  const collegeReqId = useRef(0);
+  const departmentReqId = useRef(0);
+  const semesterReqId = useRef(0);
 
   // Load colleges on component mount
   useEffect(() => {
@@ -54,63 +57,69 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   }, [hierarchy.department, hierarchy.college]);
 
   const loadColleges = async () => {
+    const reqId = ++collegeReqId.current;
     try {
-      setLoading(true);
-      setError(''); // Clear previous errors
+      setLoading(prev => ({ ...prev, colleges: true }));
+      setError('');
       const response = await getColleges();
-      setColleges(response.data || []);
+      if (reqId !== collegeReqId.current) return; // stale response
+      setColleges(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
+      if (reqId !== collegeReqId.current) return;
       console.error('Failed to load colleges:', err);
       setError('Failed to load colleges');
-      setColleges([]); // Clear colleges on error
+      setColleges([]);
     } finally {
-      setLoading(false);
+      if (reqId === collegeReqId.current) {
+        setLoading(prev => ({ ...prev, colleges: false }));
+      }
     }
   };
 
   const loadDepartments = async () => {
+    const reqId = ++departmentReqId.current;
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, departments: true }));
       setError('');
       const response = await getDepartmentsByCollegeName(hierarchy.college.trim());
+      if (reqId !== departmentReqId.current) return;
       setDepartments(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
+      if (reqId !== departmentReqId.current) return;
       console.error('Failed to load departments:', err);
       setError('Failed to load departments');
       setDepartments([]);
     } finally {
-      setLoading(false);
+      if (reqId === departmentReqId.current) {
+        setLoading(prev => ({ ...prev, departments: false }));
+      }
     }
   };
 
   const loadSemesters = async () => {
+    const reqId = ++semesterReqId.current;
     try {
-      setLoading(true);
+      setLoading(prev => ({ ...prev, semesters: true }));
       setError('');
       const deptName = hierarchy.department.trim();
       const collegeName = hierarchy.college.trim();
       const response = await getSemestersByNames(deptName, collegeName);
-      if (response.data && response.data.length > 0) {
-        setSemesters(response.data);
-      } else {
-        setError('No semesters found for the selected department and college.');
-        setSemesters([]);
-      }
+      if (reqId !== semesterReqId.current) return;
+      setSemesters(Array.isArray(response.data) ? response.data : []);
     } catch (err: any) {
+      if (reqId !== semesterReqId.current) return;
       console.error('Failed to load semesters:', err?.response || err);
-      const status = err?.response?.status;
-      if (status === 404) {
-        setError('No semesters found for the selected department and college.');
-      } else {
-        setError('Failed to load semesters. Please try again.');
-      }
+      setError('Failed to load semesters. Please try again.');
       setSemesters([]);
     } finally {
-      setLoading(false);
+      if (reqId === semesterReqId.current) {
+        setLoading(prev => ({ ...prev, semesters: false }));
+      }
     }
   };
 
   const handleSelection = (field: keyof HierarchyData, value: string) => {
+    setError('');
     const newHierarchy = {
       ...hierarchy,
       [field]: value,
@@ -158,7 +167,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading ? (
+        {loading.colleges ? (
           <div className="loading">Loading colleges...</div>
         ) : Array.isArray(colleges) && colleges.length > 0 ? (
           colleges.map((college) => (
@@ -193,7 +202,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading ? (
+        {loading.departments ? (
           <div className="loading">Loading departments...</div>
         ) : Array.isArray(departments) && departments.length > 0 ? (
           departments.map((department) => (
@@ -226,7 +235,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading ? (
+        {loading.semesters ? (
           <div className="loading">Loading semesters...</div>
         ) : Array.isArray(semesters) && semesters.length > 0 ? (
           semesters.map((semester) => (
