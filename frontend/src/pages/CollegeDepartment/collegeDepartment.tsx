@@ -27,11 +27,17 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const [colleges, setColleges] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [semesters, setSemesters] = useState<any[]>([]);
-  const [loading, setLoading] = useState({ colleges: false, departments: false, semesters: false });
+  const [loadingColleges, setLoadingColleges] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
   const [error, setError] = useState<string>('');
   const collegeReqId = useRef(0);
   const departmentReqId = useRef(0);
   const semesterReqId = useRef(0);
+
+  // Use refs to track request IDs to prevent race conditions
+  const semesterRequestIdRef = useRef<number>(0);
+  const departmentRequestIdRef = useRef<number>(0);
 
   // Load colleges on component mount
   useEffect(() => {
@@ -53,14 +59,15 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       loadSemesters();
     } else {
       setSemesters([]); // Clear semesters if department or college is missing
+      setLoadingSemesters(false);
     }
   }, [hierarchy.department, hierarchy.college]);
 
   const loadColleges = async () => {
     const reqId = ++collegeReqId.current;
     try {
-      setLoading(prev => ({ ...prev, colleges: true }));
-      setError('');
+      setLoadingColleges(true);
+      setError(''); // Clear previous errors
       const response = await getColleges();
       if (reqId !== collegeReqId.current) return; // stale response
       setColleges(Array.isArray(response.data) ? response.data : []);
@@ -70,50 +77,80 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       setError('Failed to load colleges');
       setColleges([]);
     } finally {
-      if (reqId === collegeReqId.current) {
-        setLoading(prev => ({ ...prev, colleges: false }));
-      }
+      setLoadingColleges(false);
     }
   };
 
   const loadDepartments = async () => {
-    const reqId = ++departmentReqId.current;
+    // Increment request ID to invalidate previous requests
+    departmentRequestIdRef.current += 1;
+    const currentRequestId = departmentRequestIdRef.current;
+
     try {
-      setLoading(prev => ({ ...prev, departments: true }));
-      setError('');
-      const response = await getDepartmentsByCollegeName(hierarchy.college.trim());
-      if (reqId !== departmentReqId.current) return;
+      setLoadingDepartments(true);
+      setError(''); // Clear previous errors
+      const response = await getDepartmentsByCollegeName(hierarchy.college);
+      
+      // Check if this is still the latest request
+      if (departmentRequestIdRef.current !== currentRequestId) {
+        return;
+      }
+
       setDepartments(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      if (reqId !== departmentReqId.current) return;
+    } catch (err: any) {
+      // Don't update state if this is not the latest request
+      if (departmentRequestIdRef.current !== currentRequestId) {
+        return;
+      }
       console.error('Failed to load departments:', err);
       setError('Failed to load departments');
       setDepartments([]);
     } finally {
-      if (reqId === departmentReqId.current) {
-        setLoading(prev => ({ ...prev, departments: false }));
+      // Only update loading state if this is still the latest request
+      if (departmentRequestIdRef.current === currentRequestId) {
+        setLoadingDepartments(false);
       }
     }
   };
 
   const loadSemesters = async () => {
-    const reqId = ++semesterReqId.current;
+    // Increment request ID to invalidate previous requests
+    semesterRequestIdRef.current += 1;
+    const currentRequestId = semesterRequestIdRef.current;
+
+    // Store current values to verify they haven't changed when response arrives
+    const currentDepartment = hierarchy.department;
+    const currentCollege = hierarchy.college;
+
     try {
-      setLoading(prev => ({ ...prev, semesters: true }));
-      setError('');
-      const deptName = hierarchy.department.trim();
-      const collegeName = hierarchy.college.trim();
-      const response = await getSemestersByNames(deptName, collegeName);
-      if (reqId !== semesterReqId.current) return;
-      setSemesters(Array.isArray(response.data) ? response.data : []);
+      setLoadingSemesters(true);
+      setError(''); // Clear previous errors
+      const response = await getSemestersByNames(currentDepartment, currentCollege);
+      
+      // Check if this is still the latest request
+      if (semesterRequestIdRef.current !== currentRequestId) {
+        return;
+      }
+
+      // Verify the hierarchy hasn't changed while the request was in flight
+      if (hierarchy.department !== currentDepartment || hierarchy.college !== currentCollege) {
+        return;
+      }
+
+      const semesterData = Array.isArray(response.data) ? response.data : [];
+      setSemesters(semesterData);
     } catch (err: any) {
-      if (reqId !== semesterReqId.current) return;
-      console.error('Failed to load semesters:', err?.response || err);
-      setError('Failed to load semesters. Please try again.');
-      setSemesters([]);
+      // Don't update state if this is not the latest request
+      if (semesterRequestIdRef.current !== currentRequestId) {
+        return;
+      }
+      console.error('Failed to load semesters:', err);
+      setError('Failed to load semesters');
+      setSemesters([]); // Clear semesters on error
     } finally {
-      if (reqId === semesterReqId.current) {
-        setLoading(prev => ({ ...prev, semesters: false }));
+      // Only update loading state if this is still the latest request
+      if (semesterRequestIdRef.current === currentRequestId) {
+        setLoadingSemesters(false);
       }
     }
   };
@@ -167,7 +204,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading.colleges ? (
+        {loadingColleges ? (
           <div className="loading">Loading colleges...</div>
         ) : Array.isArray(colleges) && colleges.length > 0 ? (
           colleges.map((college) => (
@@ -202,7 +239,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading.departments ? (
+        {loadingDepartments ? (
           <div className="loading">Loading departments...</div>
         ) : Array.isArray(departments) && departments.length > 0 ? (
           departments.map((department) => (
@@ -235,7 +272,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="selection-grid">
-        {loading.semesters ? (
+        {loadingSemesters ? (
           <div className="loading">Loading semesters...</div>
         ) : Array.isArray(semesters) && semesters.length > 0 ? (
           semesters.map((semester) => (

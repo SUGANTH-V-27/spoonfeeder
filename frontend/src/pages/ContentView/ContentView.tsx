@@ -1184,7 +1184,15 @@ const ContentView: React.FC<ContentViewProps> = ({
           }
           
           const mathContentMatch = processedLine.match(/\$\$([^$]+)\$\$/);
-          const mathContent = mathContentMatch ? mathContentMatch[1].trim() : processedLine.replace(/\$\$/g, '').trim();
+          let mathContent = mathContentMatch ? mathContentMatch[1].trim() : processedLine.replace(/\$\$/g, '').trim();
+          
+          // Ensure operator commands have \displaystyle for proper rendering in display math
+          // This is a safety check in case processMathExpressions didn't add it
+          const operatorCommands = ['\\lim', '\\partial', '\\frac', '\\sum', '\\prod', '\\int', '\\oint'];
+          const needsDisplayStyle = operatorCommands.some(cmd => mathContent.includes(cmd));
+          if (needsDisplayStyle && !mathContent.trim().startsWith('\\displaystyle')) {
+            mathContent = `\\displaystyle ${mathContent}`;
+          }
           
           elements.push(
             <div key={`math-block-${index}`} className="math-block" style={{ margin: '1em 0', textAlign: 'left' }}>
@@ -1321,17 +1329,36 @@ const ContentView: React.FC<ContentViewProps> = ({
       return <div className="notes-structured">No content available</div>;
     }
 
-    if (format === 'math') {
+    if (format === 'code') {
+      // For code format, display raw text
       return (
         <div className="notes-structured">
-          <MarkdownRenderer content={text} />
+          <pre
+            style={{
+              whiteSpace: 'pre',
+              background: '#1e1e1e',
+              color: '#d4d4d4',
+              padding: '16px',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              lineHeight: '1.4',
+              margin: '1rem 0',
+              overflowX: 'auto',
+              display: 'block',
+              width: '100%'
+            }}
+          >
+            {text}
+          </pre>
         </div>
       );
     } else {
-      // For 'normal' and 'code' formats, use parseStructuredText
+      // For 'normal', 'math', and any other formats, use MarkdownRenderer
       return (
         <div className="notes-structured">
-          {parseStructuredText(text, format)}
+          <MarkdownRenderer content={text} />
         </div>
       );
     }
