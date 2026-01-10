@@ -48,7 +48,12 @@ const ContentView: React.FC<ContentViewProps> = ({
   onFullscreenToggle
 }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // start hidden to avoid initial flash
-    // Removed unused isMobile state
+    
+    // Detect mobile device
+    const isMobile = () => {
+      return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
+    
     const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
   const [openResources, setOpenResources] = useState<Set<number>>(new Set());
@@ -826,13 +831,15 @@ const ContentView: React.FC<ContentViewProps> = ({
       // Direct embed of Cloudflare Worker URL (no PDF.js viewer)
       return workerUrl;
     } else {
-      // For PPTs and other files: Use Google Docs viewer with preview URL
+      // For PPTs and other files: Use direct Google Drive preview URL
       // Extract file ID from Google Drive sharing URL
       const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
       if (!fileIdMatch) return url;
 
       const fileId = fileIdMatch[1];
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(`https://drive.google.com/uc?id=${fileId}`)}&embedded=true`;
+      // Use direct Google Drive preview URL - works best for public files
+      // This format works for public files and provides native Google Drive viewer
+      return `https://drive.google.com/file/d/${fileId}/preview`;
     }
   };
 
@@ -1676,7 +1683,24 @@ const ContentView: React.FC<ContentViewProps> = ({
                       // Preview mode - clickable to open
                       <div
                         className="resource-preview"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // On mobile, for PDFs: open directly in native PDF viewer
+                          if (isMobile() && isPdf) {
+                            const embeddedUrl = getEmbeddedUrl(res.url, isPdf);
+                            window.open(embeddedUrl, '_blank', 'noopener,noreferrer');
+                            return;
+                          }
+                          // On mobile, for PPTs: open original sharing URL directly
+                          // Google Drive sharing URLs work better than constructed URLs on mobile
+                          if (isMobile() && !isPdf) {
+                            // Use the original sharing URL directly - this works best on mobile
+                            // The sharing URL already has the correct format and permissions
+                            window.open(res.url, '_blank', 'noopener,noreferrer');
+                            return;
+                          }
+                          // On desktop, open inline first
                           setLoadingResources(prev => new Set([...prev, res.id]));
                           setOpenResources(prev => new Set([...prev, res.id]));
                         }}
@@ -2350,7 +2374,8 @@ const ContentView: React.FC<ContentViewProps> = ({
                   <iframe
                     className="resource-fullscreen-iframe"
                     src={embeddedUrl}
-                    allow="autoplay"
+                    allow="autoplay; fullscreen; presentation"
+                    allowFullScreen
                     title={resource.title}
                     onLoad={() => setLoadingResources(prev => {
                       const newSet = new Set(prev);

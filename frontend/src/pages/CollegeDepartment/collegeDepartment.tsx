@@ -32,8 +32,6 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const [loadingSemesters, setLoadingSemesters] = useState(false);
   const [error, setError] = useState<string>('');
   const collegeReqId = useRef(0);
-  const departmentReqId = useRef(0);
-  const semesterReqId = useRef(0);
 
   // Use refs to track request IDs to prevent race conditions
   const semesterRequestIdRef = useRef<number>(0);

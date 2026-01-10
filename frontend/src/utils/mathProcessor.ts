@@ -29,6 +29,15 @@ export const processMathExpressions = (text: string, enableMath: boolean = true,
       content = content.replace(/youtube/gi, '').trim();
       // Check if it contains math symbols (including =, ≤, ≥, etc.)
       if (/[\\\^_\{\}\(\)=<>≤≥∈∉∑∏∫√\d\s]/.test(content) && content.length > 2) {
+        // Check if content contains operator commands that need \displaystyle
+        const operatorCommands = ['\\lim', '\\partial', '\\frac', '\\sum', '\\prod', '\\int', '\\oint'];
+        const needsDisplayStyle = operatorCommands.some(cmd => content.includes(cmd));
+        
+        // Add \displaystyle if needed and if not already present
+        if (needsDisplayStyle && !content.trim().startsWith('\\displaystyle')) {
+          content = `\\displaystyle ${content}`;
+        }
+        
         // Convert to block math format
         return `$$${content}$$`;
       }
@@ -65,7 +74,17 @@ export const processMathExpressions = (text: string, enableMath: boolean = true,
       // Remove the brackets and return the math content
       // Always wrap in $$ for block math if it's a standalone expression
       if (trimmedContent.length > 3 && !trimmedContent.includes('http') && !trimmedContent.includes('youtube')) {
-        return `$$${trimmedContent}$$`;
+        // Check if content contains operator commands that need \displaystyle
+        const operatorCommands = ['\\lim', '\\partial', '\\frac', '\\sum', '\\prod', '\\int', '\\oint'];
+        const needsDisplayStyle = operatorCommands.some(cmd => trimmedContent.includes(cmd));
+        
+        // Add \displaystyle if needed and if not already present
+        let processedContent = trimmedContent;
+        if (needsDisplayStyle && !trimmedContent.trim().startsWith('\\displaystyle')) {
+          processedContent = `\\displaystyle ${trimmedContent}`;
+        }
+        
+        return `$$${processedContent}$$`;
       }
       return trimmedContent;
     }
@@ -74,9 +93,31 @@ export const processMathExpressions = (text: string, enableMath: boolean = true,
   
   // Convert LaTeX math expressions to MathJax format
   // Handle block math: \[...\] or $$...$$
-  processed = processed.replace(/\\\[([^\]]+)\\\]/g, '$$$1$$');
+  processed = processed.replace(/\\\[([^\]]+)\\\]/g, (_match, content) => {
+    // Check if content contains operator commands that need \displaystyle
+    const operatorCommands = ['\\lim', '\\partial', '\\frac', '\\sum', '\\prod', '\\int', '\\oint'];
+    const needsDisplayStyle = operatorCommands.some(cmd => content.includes(cmd));
+    
+    // Add \displaystyle if needed and if not already present
+    // Note: \[...\] is already display math, but we add \displaystyle for consistency
+    let processedContent = content.trim();
+    if (needsDisplayStyle && !processedContent.trim().startsWith('\\displaystyle')) {
+      processedContent = `\\displaystyle ${processedContent}`;
+    }
+    
+    return `$$${processedContent}$$`;
+  });
   processed = processed.replace(/\$\$([^$]+)\$\$/g, (_match, content) => {
-    return `$$${content.trim()}$$`;
+    // Also ensure existing $$...$$ blocks have \displaystyle if needed
+    const operatorCommands = ['\\lim', '\\partial', '\\frac', '\\sum', '\\prod', '\\int', '\\oint'];
+    const needsDisplayStyle = operatorCommands.some(cmd => content.includes(cmd));
+    
+    let processedContent = content.trim();
+    if (needsDisplayStyle && !processedContent.trim().startsWith('\\displaystyle')) {
+      processedContent = `\\displaystyle ${processedContent}`;
+    }
+    
+    return `$$${processedContent}$$`;
   });
   
   // Handle inline math: \(...\) or $...$ (single dollar)

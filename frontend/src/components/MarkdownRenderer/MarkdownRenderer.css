@@ -58,6 +58,42 @@
   margin-bottom: 0;
 }
 
+/* Paragraphs containing ONLY display math (no text) - center them */
+.markdown-p-display-math {
+  text-align: center !important;
+  margin: 1.5rem auto !important;
+  display: block;
+  width: 100%;
+}
+
+.markdown-p-display-math .katex-display {
+  margin: 0 auto !important;
+  text-align: center !important;
+  display: block;
+}
+
+/* Ensure display math inside centered paragraphs is centered */
+.markdown-p-display-math > * {
+  text-align: center;
+}
+
+/* Paragraphs with text AND math - keep left-aligned, make math inline */
+.markdown-p:not(.markdown-p-display-math) .katex-display {
+  display: inline-block !important;
+  margin: 0 0.25em !important;
+  vertical-align: middle;
+  text-align: left;
+}
+
+/* When text appears before math, keep them on same line */
+.markdown-p:not(.markdown-p-display-math) {
+  text-align: left;
+}
+
+.markdown-p-display-math .katex {
+  text-align: center !important;
+}
+
 /* Lists */
 .markdown-ul,
 .markdown-ol {
@@ -174,34 +210,121 @@
 /* KaTeX Math Styling */
 .markdown-content .katex {
   font-size: 1.1em;
+  color: var(--text-primary) !important;
 }
 
+/* Ensure all KaTeX elements use the primary text color */
+.markdown-content .katex *,
+.markdown-content .katex .katex-html,
+.markdown-content .katex .katex-mathml,
+.markdown-content .katex .katex-html > *,
+.markdown-content .katex-display,
+.markdown-content .katex-display *,
+.markdown-content .katex-display .katex,
+.markdown-content .katex-display .katex * {
+  color: var(--text-primary) !important;
+}
+
+/* Override any KaTeX-specific color classes */
+.markdown-content .katex .base,
+.markdown-content .katex .strut,
+.markdown-content .katex .mord,
+.markdown-content .katex .mop,
+.markdown-content .katex .mbin,
+.markdown-content .katex .mrel,
+.markdown-content .katex .mopen,
+.markdown-content .katex .mclose,
+.markdown-content .katex .mpunct,
+.markdown-content .katex .minner,
+.markdown-content .katex .mfrac,
+.markdown-content .katex .msup,
+.markdown-content .katex .msub,
+.markdown-content .katex .munderover {
+  color: var(--text-primary) !important;
+}
+
+/* Display math blocks - centered and on one line */
 .markdown-content .katex-display {
-  margin: 1.5rem 0;
+  margin: 1.5rem auto !important;
   overflow-x: auto;
   overflow-y: hidden;
+  text-align: center !important;
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0;
 }
 
 .markdown-content .katex-display > .katex {
   display: inline-block;
-  text-align: left;
+  text-align: center;
   max-width: 100%;
+  white-space: nowrap;
+}
+
+/* Support for paragraphs containing display math - center them */
+.markdown-content p {
+  text-align: left;
+}
+
+/* Paragraphs that contain display math should be centered */
+.markdown-content p .katex-display {
+  margin: 1.5rem auto !important;
+  text-align: center !important;
+  display: block;
+}
+
+/* Ensure paragraphs with only display math are centered */
+.markdown-content p:only-child .katex-display,
+.markdown-content p:has(.katex-display) {
+  text-align: center;
 }
 
 /* Ensure math expressions don't break layout */
 .markdown-content .katex-html {
   overflow-x: auto;
   overflow-y: hidden;
+  text-align: center;
 }
 
-/* Inline math styling */
-.markdown-p .katex {
+/* Inline math styling - keep inline, don't center */
+.markdown-p .katex:not(.katex-display),
+.markdown-content .katex:not(.katex-display) {
   font-size: 1.05em;
+  text-align: inherit;
+  display: inline;
 }
 
-/* Block math styling */
-.markdown-content .katex-display {
-  padding: 0.5rem 0;
+/* Special handling for display math wrapped in paragraphs from \[ ... \] blocks */
+.markdown-content p > span:has(.katex-display),
+.markdown-content p > .katex-display {
+  display: block;
+  margin: 1.5rem auto !important;
+  text-align: center !important;
+  width: 100%;
+}
+
+/* Ensure display math is always centered regardless of parent */
+.markdown-content .katex-display,
+.markdown-content span[class*="katex-display"],
+.markdown-content div[class*="katex-display"] {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+}
+
+/* Ensure paragraphs that contain only display math (from [math] blocks) are centered */
+.markdown-content p:has(> .katex-display),
+.markdown-content p:has(> span > .katex-display) {
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Fallback for browsers that don't support :has() */
+.markdown-content p.markdown-p-display-math {
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 /* Horizontal rules */

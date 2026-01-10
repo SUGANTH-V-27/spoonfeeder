@@ -161,7 +161,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
             },
         });
 
-        const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+        const resetUrl = `${process.env.FRONTEND_URL || "https://spoonfeeders.vercel.app"}/reset-password?token=${token}`;
 
         await transporter.sendMail({
             from: `"${process.env.EMAIL_FROM}" <${process.env.SMTP_USER}>`,

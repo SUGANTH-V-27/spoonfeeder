@@ -2539,3 +2539,362 @@ body {
   background: var(--background-dark);
 }
 
+/* ===== Mobile Responsive Styles (max-width: 768px) ===== */
+/* These styles only apply to mobile devices and do not affect desktop behavior */
+
+@media (max-width: 768px) {
+  /* Content Main - Full width on mobile when sidebar is collapsed */
+  .content-main {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    padding: 20px 16px !important;
+    margin-top: 64px;
+  }
+
+  .content-main.sidebar-collapsed {
+    margin-left: 0 !important;
+    width: 100vw !important;
+  }
+
+  /* Content Header - Mobile adjustments */
+  .content-header {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 24px;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .content-header h1 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    width: 100%;
+  }
+
+  .content-header h1 span {
+    font-size: 0.7rem;
+    padding: 3px 10px;
+  }
+
+  .content-breadcrumb {
+    font-size: 0.75rem;
+    padding: 10px 14px;
+    max-width: 100%;
+    line-height: 1.4;
+  }
+
+  /* Sections - Mobile spacing */
+  .section {
+    margin-bottom: 32px;
+    width: 100%;
+  }
+
+  .section-title {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Video Cards - Mobile adjustments */
+  .video-list {
+    gap: 24px;
+    width: 100%;
+  }
+
+  .video-card.compact {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .video-card-header {
+    padding-left: 0;
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+
+  .video-title {
+    font-size: 0.95rem;
+    padding-right: 40px; /* Space for delete button */
+  }
+
+  .video-wrapper.small {
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 12px;
+    border-radius: 8px;
+  }
+
+  .video-empty-state {
+    margin: 12px 0;
+    padding: 32px 16px;
+  }
+
+  .video-empty-text {
+    font-size: 0.85rem;
+  }
+
+  /* Video Delete Button - Mobile positioning */
+  .video-delete-btn {
+    padding: 5px;
+    font-size: 0.85rem;
+  }
+
+  /* Notes Container - Mobile adjustments */
+  .notes-container {
+    padding: 16px;
+    width: 100%;
+  }
+
+  .notes-h1 {
+    font-size: 1.4rem;
+  }
+
+  .notes-h2 {
+    font-size: 1.15rem;
+  }
+
+  .notes-h3 {
+    font-size: 1.05rem;
+  }
+
+  .notes-paragraph {
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  /* Questions Widget - Mobile adjustments */
+  .questions-widget {
+    padding: 16px;
+    width: 100%;
+  }
+
+  .widget-header {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .widget-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+  }
+
+  .widget-title {
+    font-size: 1rem;
+  }
+
+  .qa-widget-question {
+    padding: 12px 14px;
+    font-size: 0.9rem;
+    gap: 8px;
+  }
+
+  .question-number {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+  }
+
+  .question-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .qa-widget-answer {
+    padding: 0 14px 14px 32px;
+  }
+
+  .answer-content {
+    font-size: 0.9rem;
+    padding: 12px;
+    line-height: 1.6;
+  }
+
+  /* Resource Items - Mobile adjustments */
+  .drive-resources-container {
+    gap: 16px;
+    width: 100%;
+  }
+
+  .resource-item {
+    padding: 16px;
+    max-width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .resource-preview {
+    padding: 12px;
+  }
+
+  .resource-preview-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    margin-right: 12px;
+  }
+
+  .resource-preview-title {
+    font-size: 0.95rem;
+  }
+
+  .resource-preview-desc {
+    font-size: 0.85rem;
+  }
+
+  .resource-title {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  .resource-frame {
+    height: 250px;
+    border-radius: 8px;
+  }
+
+  /* Content Placeholder - Mobile adjustments */
+  .content-placeholder {
+    padding: 40px 16px;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .content-placeholder h2 {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+
+  .content-placeholder p {
+    font-size: 0.95rem;
+    margin-bottom: 28px;
+    max-width: 100%;
+  }
+
+  .placeholder-steps {
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .step {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  .step span:last-child {
+    font-size: 0.9rem;
+  }
+
+  /* Content Loading - Mobile adjustments */
+  .content-loading {
+    padding: 40px 20px;
+  }
+
+  .section-loading-text {
+    font-size: 0.95rem;
+  }
+
+  /* Fullscreen Exit Button - Mobile positioning */
+  .fullscreen-exit-btn {
+    top: 8px;
+    right: 8px;
+    padding: 10px;
+  }
+
+  /* Resource Fullscreen - Mobile adjustments */
+  .resource-fullscreen-header {
+    padding: 10px 16px;
+    min-height: 44px;
+  }
+
+  .resource-fullscreen-title {
+    font-size: 1rem;
+  }
+
+  .resource-counter {
+    font-size: 0.75rem;
+  }
+
+  .resource-nav-btn {
+    padding: 5px;
+    margin: 0 4px;
+  }
+
+  .resource-fullscreen-exit-btn {
+    padding: 5px;
+  }
+
+  /* Videos Container - Mobile adjustments */
+  .videos-container {
+    gap: 20px;
+    width: 100%;
+  }
+
+  .video-item {
+    width: 100%;
+  }
+
+  /* Centered Content - Mobile adjustments */
+  .centered-content {
+    width: 100%;
+    padding: 0;
+  }
+
+  .video-card.centered-content {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .notes-container.centered-content {
+    width: 100%;
+    padding: 16px;
+  }
+}
+
+/* Additional mobile adjustments for smaller screens (max-width: 480px) */
+@media (max-width: 480px) {
+  .content-main {
+    padding: 16px 12px !important;
+  }
+
+  .content-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .section-title {
+    font-size: 0.9rem;
+  }
+
+  .video-title {
+    font-size: 0.9rem;
+  }
+
+  .notes-h1 {
+    font-size: 1.3rem;
+  }
+
+  .notes-h2 {
+    font-size: 1.1rem;
+  }
+
+  .widget-title {
+    font-size: 0.95rem;
+  }
+
+  .resource-preview-title {
+    font-size: 0.9rem;
+  }
+
+  .resource-title {
+    font-size: 0.9rem;
+  }
+
+  .content-placeholder h2 {
+    font-size: 1.3rem;
+  }
+}
+

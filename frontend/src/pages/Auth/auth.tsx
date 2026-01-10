@@ -328,7 +328,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                         >
                             <div className="brand-logo-container">
                                 <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
-                                <div className="brand-title">Spoonfeeder</div>
+                                <div className="brand-title">SPOONFEEDER</div>
                             </div>
                             <div className="brand-hero">
                                 Structured learning<br/>

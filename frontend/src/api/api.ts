@@ -1,7 +1,17 @@
 import axios from "axios";
 
+// Use local backend in development, production backend otherwise
+const getBaseURL = () => {
+  // Check if we're in development mode (localhost)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.') || window.location.hostname.startsWith('172.')) {
+    // Use the same hostname but port 5000 for backend
+    return `http://${window.location.hostname}:5000/api`;
+  }
+  return "https://spoonfeeders-backend.vercel.app/api"; // Production backend URL
+};
+
 const api = axios.create({
-  baseURL: "https://spoonfeeders-backend.vercel.app/api", // Vercel backend URL
+  baseURL: getBaseURL(),
   headers: {
     "Content-Type": "application/json",
   },
