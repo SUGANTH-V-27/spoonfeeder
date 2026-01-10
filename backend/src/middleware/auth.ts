@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 interface AuthPayload {
-  userId: number;
+  id: number;
   email: string;
 }
 
@@ -36,10 +36,7 @@ export const requireAuth = (
     ) as AuthPayload;
 
     // 3) Attach user info to req for later handlers
-    (req as any).user = {
-      id: decoded.userId,
-      email: decoded.email
-    };
+    (req as any).user = decoded;
 
     // 4) Continue to the next middleware/route
     return next();
