@@ -30,7 +30,8 @@ const Header: React.FC<HeaderProps> = ({
   hasContent = false
 }) => {
   const { user, logout: authLogout, isAdmin } = useAuth();
-  
+  const [isMobile, setIsMobile] = useState(false);
+
   // Use actual user data from AuthContext, fallback to props if provided
   const email = user?.email || emailProp || "user@example.com";
   const username = usernameProp || (email ? email.split('@')[0] : "User");
@@ -60,11 +61,14 @@ const Header: React.FC<HeaderProps> = ({
     setModeDropdownOpen(false);
   };
 
-
-
-
-
-
+  // Mobile detection
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -207,8 +211,18 @@ const Header: React.FC<HeaderProps> = ({
             <span>{(username || email).charAt(0).toUpperCase()}</span>
           </button>
 
+          {showProfileDropdown && isMobile && (
+            <div
+              className="profile-overlay-backdrop"
+              onClick={() => {
+                setShowProfileDropdown(false);
+                setSettingsOpen(false);
+              }}
+            />
+          )}
+
           {showProfileDropdown && (
-            <div className="profile-dropdown">
+            <div className={`profile-dropdown ${isMobile ? 'profile-dropdown-overlay' : ''}`}>
               <div className="profile-info">
                 <div className="profile-username">{username}</div>
                 <div className="profile-email">{email}</div>
