@@ -87,12 +87,17 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     try {
       setLoading(true);
       setError(''); // Clear previous errors
-      const response = await getSemestersByNames(hierarchy.department, hierarchy.college);
-      setSemesters(response.data || []);
+      const response = await getSemestersByNames(hierarchy.department.trim(), hierarchy.college.trim());
+      if (response.data && response.data.length > 0) {
+        setSemesters(response.data);
+      } else {
+        setError('No semesters found for the selected department and college.');
+        setSemesters([]);
+      }
     } catch (err) {
       console.error('Failed to load semesters:', err);
-      setError('Failed to load semesters');
-      setSemesters([]); // Clear semesters on error
+      setError('Failed to load semesters. Please try again.');
+      setSemesters([]);
     } finally {
       setLoading(false);
     }

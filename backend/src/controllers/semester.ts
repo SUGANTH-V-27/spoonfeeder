@@ -16,7 +16,7 @@ import pool from "../db/connection";
       if(isNaN(departmentId)){
           return res.status(400).json({ error:"Invalid department ID"});
       }
-      query = "SELECT id,department_id as \"departmentId\",name FROM semesters WHERE department_id = $1 ORDER BY id";
+      query = "SELECT id, department_id as \"departmentId\", name FROM semesters WHERE department_id = $1 ORDER BY id";
       params = [departmentId];
     } else if (departmentNameParam && collegeNameParam) {
       // Get by department and college names (case-insensitive, trim whitespace)
@@ -28,12 +28,15 @@ import pool from "../db/connection";
         WHERE LOWER(TRIM(d.name)) = LOWER(TRIM($1)) AND LOWER(TRIM(c.name)) = LOWER(TRIM($2))
         ORDER BY s.id
       `;
-      params = [departmentNameParam, collegeNameParam];
+      params = [departmentNameParam.trim(), collegeNameParam.trim()];
     } else {
       return res.status(400).json({ error: "Either departmentId or (departmentName and collegeName) parameters are required" });
     }
 
     const result = await pool.query(query, params);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No semesters found for the given criteria" });
+    }
     return res.json(result.rows);
   }catch(err)
   {
