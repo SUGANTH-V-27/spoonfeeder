@@ -71,13 +71,13 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const loadDepartments = async () => {
     try {
       setLoading(true);
-      setError(''); // Clear previous errors
-      const response = await getDepartmentsByCollegeName(hierarchy.college);
+      setError('');
+      const response = await getDepartmentsByCollegeName(hierarchy.college.trim());
       setDepartments(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to load departments:', err);
       setError('Failed to load departments');
-      setDepartments([]); // Clear departments on error
+      setDepartments([]);
     } finally {
       setLoading(false);
     }
@@ -86,17 +86,24 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const loadSemesters = async () => {
     try {
       setLoading(true);
-      setError(''); // Clear previous errors
-      const response = await getSemestersByNames(hierarchy.department.trim(), hierarchy.college.trim());
+      setError('');
+      const deptName = hierarchy.department.trim();
+      const collegeName = hierarchy.college.trim();
+      const response = await getSemestersByNames(deptName, collegeName);
       if (response.data && response.data.length > 0) {
         setSemesters(response.data);
       } else {
         setError('No semesters found for the selected department and college.');
         setSemesters([]);
       }
-    } catch (err) {
-      console.error('Failed to load semesters:', err);
-      setError('Failed to load semesters. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to load semesters:', err?.response || err);
+      const status = err?.response?.status;
+      if (status === 404) {
+        setError('No semesters found for the selected department and college.');
+      } else {
+        setError('Failed to load semesters. Please try again.');
+      }
       setSemesters([]);
     } finally {
       setLoading(false);

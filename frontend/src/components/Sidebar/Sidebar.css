@@ -314,8 +314,10 @@
   }
 
   .sidebar.collapsed {
-    transform: translateX(0);
-    width: 67px;
+    transform: translateX(-100%); /* keep hidden when collapsed on mobile */
+    width: 0;
+    min-width: 0;
+    display: none; /* no strip visible at any time */
   }
 
   .sidebar-resize-handle {

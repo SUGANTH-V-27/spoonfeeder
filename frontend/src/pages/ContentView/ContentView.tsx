@@ -47,11 +47,7 @@ const ContentView: React.FC<ContentViewProps> = ({
   isFullscreen = false,
   onFullscreenToggle
 }) => {
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    // Ensure sidebar stays hidden on arrival; user must open it manually
-    useEffect(() => {
-      setSidebarCollapsed(true);
-    }, []);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // start hidden to avoid initial flash
     // Removed unused isMobile state
     const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
@@ -627,8 +623,17 @@ const ContentView: React.FC<ContentViewProps> = ({
 
 
     const handleMenuToggle = () => {
-    setSidebarCollapsed(prev => !prev);
+      setSidebarCollapsed(prev => !prev);
     };
+
+    // Match content area transition easing to sidebar for synchronized toggle
+    useEffect(() => {
+      const contentMain = document.querySelector('.content-main') as HTMLElement | null;
+      if (!contentMain) return;
+
+      // Use same cubic-bezier as sidebar for margin-left and width transitions
+      contentMain.style.transition = `margin-left 260ms cubic-bezier(0.4, 0, 0.2, 1), width 260ms cubic-bezier(0.4, 0, 0.2, 1)`;
+    }, [sidebarCollapsed]);
 
   const handleFullscreenToggle = () => {
     if (!isFullscreen) {

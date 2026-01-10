@@ -56,6 +56,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editingName, setEditingName] = React.useState('');
   const sidebarRef = React.useRef<HTMLElement>(null);
   const [isMobile, setIsMobile] = React.useState(false);
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const prevCollapsedRef = React.useRef(isCollapsed);
+  const TRANSITION = '260ms cubic-bezier(0.4, 0, 0.2, 1)';
+
+  React.useEffect(() => {
+    if (prevCollapsedRef.current !== isCollapsed) {
+      setIsAnimating(true);
+      prevCollapsedRef.current = isCollapsed;
+      const timer = setTimeout(() => setIsAnimating(false), 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isCollapsed]);
 
   const handleEditStart = (item: any) => {
     setEditingItemId(item.id);
@@ -154,20 +166,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (isMobile) {
       if (sidebarRef.current) {
         if (isCollapsed) {
-          sidebarRef.current.style.width = `${collapsedWidth}px`;
-          sidebarRef.current.style.transform = 'translateX(0)';
+          sidebarRef.current.style.width = '0';
+          sidebarRef.current.style.minWidth = '0';
+          sidebarRef.current.style.transform = 'translateX(-100%)';
         } else {
           sidebarRef.current.style.width = '100%';
+          sidebarRef.current.style.minWidth = '100%';
           sidebarRef.current.style.transform = 'translateX(0)';
         }
       }
-      if (isCollapsed) {
-        contentMain.style.marginLeft = `${collapsedWidth + 4}px`;
-        contentMain.style.width = `calc(100vw - ${collapsedWidth + 4}px)`;
-      } else {
-        contentMain.style.marginLeft = '0';
-        contentMain.style.width = '100vw';
-      }
+      contentMain.style.marginLeft = '0';
+      contentMain.style.width = '100vw';
       return;
     }
 
@@ -184,232 +193,285 @@ const Sidebar: React.FC<SidebarProps> = ({
       contentMain.style.marginLeft = `${sidebarWidth + 40}px`;
       contentMain.style.width = `calc(100vw - ${sidebarWidth + 40}px)`;
     }
-  }, [sidebarWidth, isCollapsed, isMobile]);
+  }, [sidebarWidth, isCollapsed, isMobile, isResizing]);
 
   const handleItemClick = (item: any) => {
     onItemClick?.(item);
-    const isFinalSubtopic =
-      mode === 'subtopics' && (!item.subTopics || item.subTopics.length === 0);
-    if (isFinalSubtopic) {
+    const reachedLastLevel = mode === 'subtopics';
+    if (reachedLastLevel) {
       onCloseSidebar?.();
     }
   };
 
+  const computedStyle = React.useMemo<React.CSSProperties>(() => {
+    const transition = isResizing ? 'none' : `width ${TRANSITION}, transform ${TRANSITION}, opacity ${TRANSITION}`;
+    const common = {
+      transition,
+      willChange: 'transform, width, opacity'
+    } as const;
+
+    if (isMobile) {
+      return {
+        ...common,
+        width: isCollapsed ? '0px' : '100%',
+        transform: isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
+        opacity: isCollapsed ? 0 : 1,
+        visibility: isCollapsed ? 'hidden' : 'visible',
+        pointerEvents: isCollapsed ? 'none' : 'auto',
+        borderRight: isCollapsed ? 'none' : undefined
+      };
+    }
+
+    if (isCollapsed) {
+      return {
+        ...common,
+        width: '64px',
+        transform: 'translateX(0)',
+        opacity: 1
+      };
+    }
+
+    return {
+      ...common,
+      width: `${sidebarWidth}px`,
+      transform: 'translateX(0)',
+      opacity: 1
+    };
+  }, [isCollapsed, isMobile, sidebarWidth, isResizing, TRANSITION]);
+
   return (
-    <aside
-      ref={sidebarRef}
-      className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile && !isCollapsed ? 'mobile-open' : ''}`}
-      style={!isCollapsed && !isMobile ? { width: `${sidebarWidth}px`, transform: 'translateX(0)' } : undefined}
-    >
-      {!isCollapsed && (
-        <div
-          className={`sidebar-resize-handle ${isResizing ? 'resizing' : ''}`}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setIsResizing(true);
-          }}
-        />
-      )}
-      {!isCollapsed && (mode === 'topics' || mode === 'subtopics') && (
-        <div className="sidebar-header">
-          <button
-            className="sidebar-back-icon"
-            onClick={onBackClick}
-            title={mode === 'topics' ? 'Back to Courses' : 'Back to Topics'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <div className="sidebar-header-title">
-            {mode === 'topics' ? courseName?.toUpperCase() : topicName?.toUpperCase()}
+    <>
+      <aside
+        ref={sidebarRef}
+        className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile && !isCollapsed ? 'mobile-open' : ''} ${isAnimating ? 'animating' : ''}`}
+        style={computedStyle}
+      >
+        {!isCollapsed && (
+          <div
+            className={`sidebar-resize-handle ${isResizing ? 'resizing' : ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+          />
+        )}
+        {!isCollapsed && (mode === 'topics' || mode === 'subtopics') && (
+          <div className="sidebar-header">
+            <button
+              className="sidebar-back-icon"
+              onClick={onBackClick}
+              title={mode === 'topics' ? 'Back to Courses' : 'Back to Topics'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <div className="sidebar-header-title">
+              {mode === 'topics' ? courseName?.toUpperCase() : topicName?.toUpperCase()}
+            </div>
           </div>
-        </div>
-      )}
-      <nav className="sidebar-nav">
-        {isLoading ? (
-          isCollapsed ? (
-            <div className="sidebar-collapsed-loading" aria-label="Loading">
-              <div className="loading-spinner collapsed"></div>
+        )}
+        <nav className="sidebar-nav">
+          {isLoading ? (
+            isCollapsed ? (
+              <div className="sidebar-collapsed-loading" aria-label="Loading">
+                <div className="loading-spinner collapsed"></div>
+              </div>
+            ) : (
+              <div className="sidebar-loading">
+                <div className="loading-spinner"></div>
+                <span className="loading-text">Loading...</span>
+              </div>
+            )
+          ) : isCollapsed ? (
+            <div className="sidebar-collapsed-icon">
+              {getModeIcon()}
             </div>
           ) : (
-            <div className="sidebar-loading">
-              <div className="loading-spinner"></div>
-              <span className="loading-text">Loading...</span>
-            </div>
-          )
-        ) : isCollapsed ? (
-          <div className="sidebar-collapsed-icon">
-            {getModeIcon()}
-          </div>
-        ) : (
-          <ul className="nav-list">
-            {items.length === 0 && isAdmin && (
-              <li className="nav-item">
-                <div className="nav-empty-state">
-                  <span className="nav-empty-text">
-                    No {mode?.slice(0, -1)}s yet
-                  </span>
-                </div>
-              </li>
-            )}
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className={`nav-item ${editingItemId === item.id ? 'editing' : ''}`}
-              >
-                <div className="nav-item-container">
-                  <button
-                    onClick={() => handleItemClick(item)}
-                    className={`nav-link ${selectedItemId === item.id ? 'active' : ''}`}
-                  >
-                    <div className="nav-content">
-                      {editingItemId === item.id ? (
-                        <div className="nav-edit-container">
+            <ul className="nav-list">
+              {items.length === 0 && isAdmin && (
+                <li className="nav-item">
+                  <div className="nav-empty-state">
+                    <span className="nav-empty-text">
+                      No {mode?.slice(0, -1)}s yet
+                    </span>
+                  </div>
+                </li>
+              )}
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className={`nav-item ${editingItemId === item.id ? 'editing' : ''}`}
+                >
+                  <div className="nav-item-container">
+                    <button
+                      onClick={() => handleItemClick(item)}
+                      className={`nav-link ${selectedItemId === item.id ? 'active' : ''}`}
+                    >
+                      <div className="nav-content">
+                        {editingItemId === item.id ? (
+                          <div className="nav-edit-container">
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => handleEditKeyPress(e, item)}
+                              className="nav-edit-input"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="nav-edit-buttons">
+                              <button
+                                className="nav-edit-save"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditSave(item);
+                                }}
+                                disabled={!editingName.trim()}
+                                title="Save"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                className="nav-edit-cancel"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditCancel();
+                                }}
+                                title="Cancel"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="nav-label">{item.label.toUpperCase()}</span>
+                            {item.description && !isCollapsed && (
+                              <span className="nav-description">{item.description}</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </button>
+                    {isAdmin && onDeleteItem && (
+                      <button
+                        className="nav-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const itemType = mode === 'courses' ? 'course' : mode === 'topics' ? 'topic' : 'subtopic';
+                          const confirmed = window.confirm(
+                            `Are you sure you want to delete this ${itemType}?\n\n"${item.label.toUpperCase()}"\n\nThis action cannot be undone and will also delete all related content.`
+                          );
+                          if (confirmed) {
+                            onDeleteItem(item);
+                          }
+                        }}
+                        title="Delete item"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          <line x1="10" y1="11" x2="10" y2="17"/>
+                          <line x1="14" y1="11" x2="14" y2="17"/>
+                        </svg>
+                      </button>
+                    )}
+                    {isAdmin && onEditItem && mode === 'subtopics' && (
+                      <button
+                        className="nav-edit-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditStart(item);
+                        }}
+                        title="Edit subtopic name"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+
+              {/* Add new item button for admin users */}
+              {isAdmin && (
+                <li className="nav-item">
+                  {!showAddForm?.visible || showAddForm?.mode !== mode ? (
+                    <button
+                      className="nav-add-btn"
+                      onClick={() => onAddItem?.(mode)}
+                      title={`Add new ${mode?.slice(0, -1)}`}
+                    >
+                      <div className="nav-content">
+                        <div className="nav-add-content">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 5v14M5 12h14"/>
+                          </svg>
+                          <span className="nav-add-text">
+                            Add {mode === 'courses' ? 'Course' : mode === 'topics' ? 'Topic' : 'Subtopic'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="nav-add-form">
+                      <div className="nav-content">
+                        <div className="add-form-content">
                           <input
                             type="text"
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={(e) => handleEditKeyPress(e, item)}
-                            className="nav-edit-input"
+                            placeholder={`${mode === 'courses' ? 'Course' : mode === 'topics' ? 'Topic' : 'Subtopic'} name`}
+                            value={addFormData?.name || ''}
+                            onChange={(e) => onAddFormChange?.({
+                              ...addFormData!,
+                              name: e.target.value
+                            })}
+                            className="add-form-input"
                             autoFocus
-                            onClick={(e) => e.stopPropagation()}
                           />
-                          <div className="nav-edit-buttons">
+                          <div className="add-form-buttons">
                             <button
-                              className="nav-edit-save"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditSave(item);
-                              }}
-                              disabled={!editingName.trim()}
-                              title="Save"
+                              className="add-form-submit"
+                              onClick={onAddSubmit}
+                              disabled={!addFormData?.name.trim()}
                             >
-                              ✓
+                              Add
                             </button>
                             <button
-                              className="nav-edit-cancel"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditCancel();
-                              }}
-                              title="Cancel"
+                              className="add-form-cancel"
+                              onClick={onCancelAdd}
                             >
                               ✕
                             </button>
                           </div>
                         </div>
-                      ) : (
-                        <>
-                          <span className="nav-label">{item.label.toUpperCase()}</span>
-                          {item.description && !isCollapsed && (
-                            <span className="nav-description">{item.description}</span>
-                          )}
-                        </>
-                      )}
+                      </div>
                     </div>
-                  </button>
-                  {isAdmin && onDeleteItem && (
-                    <button
-                      className="nav-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const itemType = mode === 'courses' ? 'course' : mode === 'topics' ? 'topic' : 'subtopic';
-                        const confirmed = window.confirm(
-                          `Are you sure you want to delete this ${itemType}?\n\n"${item.label.toUpperCase()}"\n\nThis action cannot be undone and will also delete all related content.`
-                        );
-                        if (confirmed) {
-                          onDeleteItem(item);
-                        }
-                      }}
-                      title="Delete item"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        <line x1="10" y1="11" x2="10" y2="17"/>
-                        <line x1="14" y1="11" x2="14" y2="17"/>
-                      </svg>
-                    </button>
                   )}
-                  {isAdmin && onEditItem && mode === 'subtopics' && (
-                    <button
-                      className="nav-edit-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditStart(item);
-                      }}
-                      title="Edit subtopic name"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
+                </li>
+              )}
+            </ul>
+          )}
+        </nav>
+      </aside>
 
-            {/* Add new item button for admin users */}
-            {isAdmin && (
-              <li className="nav-item">
-                {!showAddForm?.visible || showAddForm?.mode !== mode ? (
-                  <button
-                    className="nav-add-btn"
-                    onClick={() => onAddItem?.(mode)}
-                    title={`Add new ${mode?.slice(0, -1)}`}
-                  >
-                    <div className="nav-content">
-                      <div className="nav-add-content">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14"/>
-                        </svg>
-                        <span className="nav-add-text">
-                          Add {mode === 'courses' ? 'Course' : mode === 'topics' ? 'Topic' : 'Subtopic'}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="nav-add-form">
-                    <div className="nav-content">
-                      <div className="add-form-content">
-                        <input
-                          type="text"
-                          placeholder={`${mode === 'courses' ? 'Course' : mode === 'topics' ? 'Topic' : 'Subtopic'} name`}
-                          value={addFormData?.name || ''}
-                          onChange={(e) => onAddFormChange?.({
-                            ...addFormData!,
-                            name: e.target.value
-                          })}
-                          className="add-form-input"
-                          autoFocus
-                        />
-                        <div className="add-form-buttons">
-                          <button
-                            className="add-form-submit"
-                            onClick={onAddSubmit}
-                            disabled={!addFormData?.name.trim()}
-                          >
-                            Add
-                          </button>
-                          <button
-                            className="add-form-cancel"
-                            onClick={onCancelAdd}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </li>
-            )}
-          </ul>
-        )}
-      </nav>
-    </aside>
+      {isMobile && (
+        <div
+          className="sidebar-overlay"
+          onClick={onCloseSidebar}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.25)',
+            opacity: !isCollapsed ? 1 : 0,
+            transition: 'opacity 240ms ease',
+            pointerEvents: !isCollapsed ? 'auto' : 'none',
+            zIndex: 8
+          }}
+        />
+      )}
+    </>
   );
 };
 
