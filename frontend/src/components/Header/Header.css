@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px 0 0;
+  padding: 0 16px 0 7px;
   position: fixed;
   top: 0;
   left: 0;
@@ -18,7 +18,7 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 7px;
   min-width: fit-content;
   margin-left: 0;
   padding-left: 0;
@@ -436,7 +436,11 @@
 /* ================= Responsive ================= */
 @media (max-width: 768px) {
   .header {
-    padding: 0 16px;
+    padding: 0 12px 0 3px;
+  }
+
+  .header-left {
+    gap: 7px;
   }
 
   .header-logo h1 {

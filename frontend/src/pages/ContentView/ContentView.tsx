@@ -48,6 +48,10 @@ const ContentView: React.FC<ContentViewProps> = ({
   onFullscreenToggle
 }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    // Ensure sidebar stays hidden on arrival; user must open it manually
+    useEffect(() => {
+      setSidebarCollapsed(true);
+    }, []);
     // Removed unused isMobile state
     const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());

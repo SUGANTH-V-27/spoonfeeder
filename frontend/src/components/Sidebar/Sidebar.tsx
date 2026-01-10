@@ -149,13 +149,25 @@ const Sidebar: React.FC<SidebarProps> = ({
     const contentMain = document.querySelector('.content-main') as HTMLElement | null;
     if (!contentMain) return;
 
+    const collapsedWidth = 64;
+
     if (isMobile) {
       if (sidebarRef.current) {
-        sidebarRef.current.style.width = '100%';
-        sidebarRef.current.style.transform = isCollapsed ? 'translateX(-100%)' : 'translateX(0)';
+        if (isCollapsed) {
+          sidebarRef.current.style.width = `${collapsedWidth}px`;
+          sidebarRef.current.style.transform = 'translateX(0)';
+        } else {
+          sidebarRef.current.style.width = '100%';
+          sidebarRef.current.style.transform = 'translateX(0)';
+        }
       }
-      contentMain.style.marginLeft = '0';
-      contentMain.style.width = '100vw';
+      if (isCollapsed) {
+        contentMain.style.marginLeft = `${collapsedWidth + 4}px`;
+        contentMain.style.width = `calc(100vw - ${collapsedWidth + 4}px)`;
+      } else {
+        contentMain.style.marginLeft = '0';
+        contentMain.style.width = '100vw';
+      }
       return;
     }
 
@@ -187,7 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <aside
       ref={sidebarRef}
       className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobile && !isCollapsed ? 'mobile-open' : ''}`}
-      style={!isCollapsed && !isMobile ? { width: `${sidebarWidth}px` } : undefined}
+      style={!isCollapsed && !isMobile ? { width: `${sidebarWidth}px`, transform: 'translateX(0)' } : undefined}
     >
       {!isCollapsed && (
         <div
@@ -216,10 +228,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
       <nav className="sidebar-nav">
         {isLoading ? (
-          <div className="sidebar-loading">
-            <div className="loading-spinner"></div>
-            <span className="loading-text">Loading...</span>
-          </div>
+          isCollapsed ? (
+            <div className="sidebar-collapsed-loading" aria-label="Loading">
+              <div className="loading-spinner collapsed"></div>
+            </div>
+          ) : (
+            <div className="sidebar-loading">
+              <div className="loading-spinner"></div>
+              <span className="loading-text">Loading...</span>
+            </div>
+          )
         ) : isCollapsed ? (
           <div className="sidebar-collapsed-icon">
             {getModeIcon()}
