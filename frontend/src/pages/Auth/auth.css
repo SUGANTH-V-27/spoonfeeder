@@ -621,9 +621,10 @@ html, body {
     cursor:pointer;
 }
 
+/* WhatsApp hover uses the same blue/transform as others */
 .contact-icon[href*="wa.me"]:hover {
-    color: var(--text-secondary); /* keep neutral color */
-    transform: translateY(-2px) scale(1.1); /* match translate/scale like others */
+    color: var(--primary-accent);
+    transform: translateY(-2px) scale(1.1);
 }
 
 /* Prevent contact icons from retaining focus/visited styling */
@@ -1304,4 +1305,3 @@ input[type="password"]::-webkit-clear-button {
         margin-left: 0;
     }
 }
-
