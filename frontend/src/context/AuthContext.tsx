@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { login, register } from '../api/auth';
-import type { LoginData, RegisterData, AuthResponse } from '../api/auth';
+import { login, register, signupInit, signupVerify, signupComplete } from '../api/auth';
+import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload, SignupCompletePayload } from '../api/auth';
 
 // Admin emails configuration
 const ADMIN_EMAILS = [
@@ -31,6 +31,9 @@ interface AuthContextType {
   isAuthenticating: boolean;
   login: (data: LoginData) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
+  startSignup: (data: SignupInitPayload) => Promise<void>;
+  verifySignup: (data: SignupVerifyPayload) => Promise<string>;
+  completeSignup: (data: SignupCompletePayload) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -53,6 +56,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [pendingSignupEmail, setPendingSignupEmail] = useState<string | null>(null);
+  const [signupToken, setSignupToken] = useState<string | null>(null);
 
   // Check if current user is admin
   const isAdmin = user ? ADMIN_EMAILS.includes(user.email) : false;
@@ -160,6 +165,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const startSignup = async (data: SignupInitPayload): Promise<void> => {
+    setIsAuthenticating(true);
+    try {
+      await signupInit(data);
+      setPendingSignupEmail(data.email);
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const verifySignup = async (data: SignupVerifyPayload): Promise<string> => {
+    setIsAuthenticating(true);
+    try {
+      const res = await signupVerify(data);
+      setSignupToken(res.signupToken);
+      return res.signupToken;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const completeSignupFlow = async (data: SignupCompletePayload): Promise<boolean> => {
+    setIsAuthenticating(true);
+    try {
+      const response: AuthResponse = await signupComplete(data);
+      setToken(response.token);
+      setUser(response.user);
+
+      // Clear caches for new user
+      localStorage.removeItem('hierarchy');
+      localStorage.removeItem('contentMode');
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (error) {
+        console.error('Error clearing caches on register:', error);
+      }
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setPendingSignupEmail(null);
+      setSignupToken(null);
+      return true;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   const handleLogout = () => {
     setToken(null);
@@ -193,6 +251,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticating,
     login: handleLogin,
     register: handleRegister,
+    startSignup,
+    verifySignup,
+    completeSignup: completeSignupFlow,
     logout: handleLogout,
   };
 

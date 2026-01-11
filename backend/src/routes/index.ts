@@ -8,7 +8,7 @@ import { getsemesters, addSemester, deleteSemester } from "../controllers/semest
 import { getCourse, addCourse, deleteCourse } from "../controllers/course";
 import { getTopics, addTopic, deleteTopic } from "../controllers/topics";
 import { getSubtopics, addSubtopic, deleteSubtopic, updateSubtopic } from "../controllers/subtopics";
-import { register, login, forgotPassword, resetPassword } from "../controllers/auth";
+import { register, login, forgotPassword, resetPassword, sendSignupOtp, verifySignupOtp, completeSignup } from "../controllers/auth";
 import { getSubtopicContent, addSubtopicContent, deleteSubtopicContent } from "../controllers/subtopicContent";
 import {noCache} from "../middleware/noCache";
 
@@ -20,6 +20,9 @@ router.post("/auth/register", register);
 router.post("/auth/login", login);
 router.post("/auth/forgot-password", forgotPassword);
 router.post("/auth/reset-password/:token", resetPassword);
+router.post("/auth/signup/init", sendSignupOtp);
+router.post("/auth/signup/verify", verifySignupOtp);
+router.post("/auth/signup/complete", completeSignup);
 router.get("/colleges", noCache, requireAuth, getColleges);
 router.post("/colleges", requireAdmin, addCollege);
 router.delete("/colleges/:id", requireAdmin, deleteCollege);
