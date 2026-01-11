@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { ReactNode } from 'react';
 import { getCourses } from '../api/courses';
 import { getTopics } from '../api/topics';
-import { getSemestersByNames } from '../api/semester';
 import { getSubtopics, getSubtopicContent } from '../api/subtopics';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +9,9 @@ export interface HierarchyData {
   college: string;
   department: string;
   semester: string;
+  collegeId: number | null;
+  departmentId: number | null;
+  semesterId: number | null;
 }
 
 export interface Topic {
@@ -100,35 +102,12 @@ export const HierarchyProvider: React.FC<HierarchyProviderProps> = ({ children }
     console.log('loadCourses - Semester value:', hierarchy.semester);
 
     try {
-      // First get the semester ID by name
-      console.log('loadCourses - Fetching semesters for:', { department: hierarchy.department, college: hierarchy.college });
-      const semesterResponse = await getSemestersByNames(hierarchy.department, hierarchy.college);
-      console.log('loadCourses - Available semesters:', semesterResponse.data);
-      console.log('loadCourses - Looking for semester:', hierarchy.semester);
-      
-      // Try exact match first
-      let semester = semesterResponse.data.find((sem: any) => sem.name === hierarchy.semester);
-      
-      // If not found, try case-insensitive match
-      if (!semester) {
-        semester = semesterResponse.data.find((sem: any) => 
-          sem.name.toLowerCase() === hierarchy.semester.toLowerCase()
-        );
-      }
-      
-      // If still not found, try partial match
-      if (!semester) {
-        semester = semesterResponse.data.find((sem: any) => 
-          sem.name.toLowerCase().includes(hierarchy.semester.toLowerCase()) ||
-          hierarchy.semester.toLowerCase().includes(sem.name.toLowerCase())
-        );
-      }
-      
-      console.log('loadCourses - Found semester:', semester);
+      // Use the stored semester ID directly
+      console.log('loadCourses - Using semester ID:', hierarchy.semesterId);
 
-      if (semester) {
-        console.log('loadCourses - Fetching courses for semester ID:', semester.id);
-        const response = await getCourses(semester.id);
+      if (hierarchy.semesterId) {
+        console.log('loadCourses - Fetching courses for semester ID:', hierarchy.semesterId);
+        const response = await getCourses(hierarchy.semesterId);
         console.log('loadCourses - Courses received:', response.data);
         
         // Transform API response to include label field for Sidebar compatibility
@@ -140,7 +119,7 @@ export const HierarchyProvider: React.FC<HierarchyProviderProps> = ({ children }
         console.log('loadCourses - Setting courses:', transformedCourses);
         setCourses(transformedCourses);
       } else {
-        console.error('loadCourses - Semester not found. Available:', semesterResponse.data.map((s: any) => s.name));
+        console.error('loadCourses - No semester ID available');
         setCourses([]);
       }
     } catch (error) {

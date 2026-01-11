@@ -79,7 +79,7 @@ export const register = async (_req: Request, res: Response) => {
         const jwtsecret = process.env.JWT_SECRET;
         if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
-        const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret, { expiresIn: "5h" });
+        const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret, { expiresIn: "12h" });
         return res.status(201).json({ message: "User registered", user: { id: newUser.id, email: newUser.email }, token });
     } catch (err) {
         logger.error("Registration error", {
@@ -113,7 +113,7 @@ export const login = async (req: Request, res: Response) => {
         const jwtsecret = process.env.JWT_SECRET;
         if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
-        const token = jwt.sign({ userId: existingUser.id, email: existingUser.email }, jwtsecret, { expiresIn: "5h" });
+        const token = jwt.sign({ userId: existingUser.id, email: existingUser.email }, jwtsecret, { expiresIn: "12h" });
         return res.json({ message: "Login successful", user: { id: existingUser.id, email: existingUser.email }, token });
     } catch (err) {
         logger.error("Login error", {
@@ -227,7 +227,7 @@ export const resetPassword = async (req: Request, res: Response) => {
         const jwtsecret = process.env.JWT_SECRET;
         if (!jwtsecret) return res.status(500).json({ error: "Server JWT config missing" });
 
-        const newToken = jwt.sign({ userId: user.id, email: user.email }, jwtsecret, { expiresIn: "5h" });
+        const newToken = jwt.sign({ userId: user.id, email: user.email }, jwtsecret, { expiresIn: "12h" });
         return res.json({
             message: "Password reset successful",
             token: newToken,

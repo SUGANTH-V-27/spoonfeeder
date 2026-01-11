@@ -4,34 +4,36 @@ import pool from "../db/connection";
 export const getsemesters = async (_req:Request,res:Response) =>{
   try{
     const departmentIdParam = _req.query.departmentId as string;
-    const departmentNameParam = _req.query.departmentName as string;
-    const collegeNameParam = _req.query.collegeName as string;
+    const collegeIdParam = _req.query.collegeId as string;
 
     let query: string;
     let params: any[];
 
-    if (departmentIdParam) {
-      // Get by department ID
+    if (departmentIdParam && collegeIdParam) {
+      // Get by department ID and college ID (most specific)
+      const departmentId = parseInt(departmentIdParam);
+      const collegeId = parseInt(collegeIdParam);
+      if(isNaN(departmentId) || isNaN(collegeId)){
+          return res.status(400).json({ error:"Invalid department ID or college ID"});
+      }
+      query = `
+        SELECT s.id, s.department_id as "departmentId", s.name
+        FROM semesters s
+        JOIN departments d ON s.department_id = d.id
+        WHERE s.department_id = $1 AND d.college_id = $2
+        ORDER BY s.id
+      `;
+      params = [departmentId, collegeId];
+    } else if (departmentIdParam) {
+      // Get by department ID only
       const departmentId = parseInt(departmentIdParam);
       if(isNaN(departmentId)){
           return res.status(400).json({ error:"Invalid department ID"});
       }
       query = "SELECT id, department_id as \"departmentId\", name FROM semesters WHERE department_id = $1 ORDER BY id";
       params = [departmentId];
-    } else if (departmentNameParam && collegeNameParam) {
-      const deptName = departmentNameParam.trim();
-      const collegeName = collegeNameParam.trim();
-      query = `
-        SELECT s.id, s.department_id as "departmentId", s.name
-        FROM semesters s
-        JOIN departments d ON s.department_id = d.id
-        JOIN colleges c ON d.college_id = c.id
-        WHERE LOWER(TRIM(d.name)) = LOWER(TRIM($1)) AND LOWER(TRIM(c.name)) = LOWER(TRIM($2))
-        ORDER BY s.id
-      `;
-      params = [deptName, collegeName];
     } else {
-      return res.status(400).json({ error: "Either departmentId or (departmentName and collegeName) parameters are required" });
+      return res.status(400).json({ error: "departmentId parameter is required" });
     }
 
     const result = await pool.query(query, params);

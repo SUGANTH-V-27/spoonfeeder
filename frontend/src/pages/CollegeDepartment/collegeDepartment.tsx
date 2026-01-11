@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import './collegeDepartment.css';
 import { getColleges } from '../../api/colleges';
-import { getDepartmentsByCollegeName } from '../../api/department';
-import { getSemestersByNames } from '../../api/semester';
+import { getDepartments } from '../../api/department';
+import { getSemestersByIds } from '../../api/semester';
 
 interface CollegeDepartmentProps {
   onNavigateToContent: () => void;
@@ -12,6 +12,9 @@ interface HierarchyData {
   college: string;
   department: string;
   semester: string;
+  collegeId: number | null;
+  departmentId: number | null;
+  semesterId: number | null;
 }
 
 type Step = 'college' | 'department' | 'semester';
@@ -22,6 +25,9 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     college: '',
     department: '',
     semester: '',
+    collegeId: null,
+    departmentId: null,
+    semesterId: null,
   });
 
   const [colleges, setColleges] = useState<any[]>([]);
@@ -69,10 +75,24 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       const response = await getColleges();
       if (reqId !== collegeReqId.current) return; // stale response
       setColleges(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
+    } catch (err: any) {
       if (reqId !== collegeReqId.current) return;
       console.error('Failed to load colleges:', err);
-      setError('Failed to load colleges');
+
+      // Check for authentication errors
+      if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again.');
+        setTimeout(() => window.location.href = '/', 2000);
+        return;
+      }
+
+      // For other errors, provide more specific messaging
+      if (err.response?.status >= 500) {
+        setError('Server error occurred. Please try again later.');
+      } else {
+        setError('Failed to load colleges. Please check your internet connection and try again.');
+      }
+
       setColleges([]);
     } finally {
       setLoadingColleges(false);
@@ -87,7 +107,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     try {
       setLoadingDepartments(true);
       setError(''); // Clear previous errors
-      const response = await getDepartmentsByCollegeName(hierarchy.college);
+      const response = await getDepartments(hierarchy.collegeId!);
       
       // Check if this is still the latest request
       if (departmentRequestIdRef.current !== currentRequestId) {
@@ -101,7 +121,23 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         return;
       }
       console.error('Failed to load departments:', err);
-      setError('Failed to load departments');
+
+      // Check for authentication errors
+      if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again.');
+        setTimeout(() => window.location.href = '/', 2000);
+        return;
+      }
+
+      // For other errors, provide more specific messaging
+      if (err.response?.status === 404) {
+        setError('No departments found for the selected college. This might be a data issue.');
+      } else if (err.response?.status >= 500) {
+        setError('Server error occurred. Please try again later.');
+      } else {
+        setError('Failed to load departments. Please check your internet connection and try again.');
+      }
+
       setDepartments([]);
     } finally {
       // Only update loading state if this is still the latest request
@@ -123,7 +159,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     try {
       setLoadingSemesters(true);
       setError(''); // Clear previous errors
-      const response = await getSemestersByNames(currentDepartment, currentCollege);
+      const response = await getSemestersByIds(hierarchy.departmentId!, hierarchy.collegeId!);
       
       // Check if this is still the latest request
       if (semesterRequestIdRef.current !== currentRequestId) {
@@ -143,7 +179,24 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         return;
       }
       console.error('Failed to load semesters:', err);
-      setError('Failed to load semesters');
+
+      // Check for authentication errors (should be handled by interceptor, but provide fallback)
+      if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again.');
+        // The API interceptor should handle the redirect, but let's also clear local state
+        setTimeout(() => window.location.href = '/', 2000);
+        return;
+      }
+
+      // For other errors, provide more specific messaging
+      if (err.response?.status === 404) {
+        setError('No semesters found for the selected department and college. This might be a data issue.');
+      } else if (err.response?.status >= 500) {
+        setError('Server error occurred. Please try again later.');
+      } else {
+        setError('Failed to load semesters. Please check your internet connection and try again.');
+      }
+
       setSemesters([]); // Clear semesters on error
     } finally {
       // Only update loading state if this is still the latest request
@@ -153,14 +206,15 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     }
   };
 
-  const handleSelection = (field: keyof HierarchyData, value: string) => {
+  const handleSelection = (field: keyof HierarchyData, value: string, id?: number) => {
     setError('');
     const newHierarchy = {
       ...hierarchy,
       [field]: value,
-      // Clear subsequent fields when changing parent selection
-      ...(field === 'college' && { department: '', semester: '' }),
-      ...(field === 'department' && { semester: '' }),
+      // Set the corresponding ID field
+      ...(field === 'college' && id !== undefined && { collegeId: id, department: '', departmentId: null, semester: '', semesterId: null }),
+      ...(field === 'department' && id !== undefined && { departmentId: id, semester: '', semesterId: null }),
+      ...(field === 'semester' && id !== undefined && { semesterId: id }),
     };
     setHierarchy(newHierarchy);
 
@@ -170,6 +224,16 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
     } else if (field === 'department') {
       setCurrentStep('semester');
     } else if (field === 'semester') {
+      // Validate that the selected semester exists in our fetched data
+      const semesterExists = semesters.some(semester =>
+        semester.name.toLowerCase() === value.toLowerCase()
+      );
+
+      if (!semesterExists) {
+        setError(`Selected semester "${value}" is not available. Please try refreshing or contact support.`);
+        return;
+      }
+
       handleComplete(newHierarchy);
     }
   };
@@ -177,10 +241,10 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
   const handleBack = () => {
     if (currentStep === 'department') {
       setCurrentStep('college');
-      setHierarchy(prev => ({ ...prev, department: '', semester: '' }));
+      setHierarchy(prev => ({ ...prev, department: '', departmentId: null, semester: '', semesterId: null }));
     } else if (currentStep === 'semester') {
       setCurrentStep('department');
-      setHierarchy(prev => ({ ...prev, semester: '' }));
+      setHierarchy(prev => ({ ...prev, semester: '', semesterId: null }));
     }
   };
 
@@ -199,7 +263,22 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         <h2>Select Your College</h2>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-message">
+          {error}
+          <button
+            className="retry-btn"
+            onClick={() => {
+              setError('');
+              if (currentStep === 'college') loadColleges();
+              else if (currentStep === 'department') loadDepartments();
+              else if (currentStep === 'semester') loadSemesters();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="selection-grid">
         {loadingColleges ? (
@@ -209,7 +288,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
             <button
               key={college.id}
               className="selection-card"
-              onClick={() => handleSelection('college', college.name)}
+              onClick={() => handleSelection('college', college.name, college.id)}
             >
               <h3>{college.name}</h3>
             </button>
@@ -234,7 +313,22 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         <p>Choose your department in {hierarchy.college}</p>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-message">
+          {error}
+          <button
+            className="retry-btn"
+            onClick={() => {
+              setError('');
+              if (currentStep === 'college') loadColleges();
+              else if (currentStep === 'department') loadDepartments();
+              else if (currentStep === 'semester') loadSemesters();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="selection-grid">
         {loadingDepartments ? (
@@ -244,7 +338,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
             <button
               key={department.id}
               className="selection-card"
-              onClick={() => handleSelection('department', department.name)}
+              onClick={() => handleSelection('department', department.name, department.id)}
             >
               <h3>{department.name}</h3>
             </button>
@@ -267,7 +361,22 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         <p>Choose your current semester in {hierarchy.department}</p>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-message">
+          {error}
+          <button
+            className="retry-btn"
+            onClick={() => {
+              setError('');
+              if (currentStep === 'college') loadColleges();
+              else if (currentStep === 'department') loadDepartments();
+              else if (currentStep === 'semester') loadSemesters();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="selection-grid">
         {loadingSemesters ? (
@@ -277,7 +386,7 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
             <button
               key={semester.id}
               className="selection-card"
-              onClick={() => handleSelection('semester', semester.name)}
+              onClick={() => handleSelection('semester', semester.name, semester.id)}
             >
               <h3>{semester.name}</h3>
             </button>

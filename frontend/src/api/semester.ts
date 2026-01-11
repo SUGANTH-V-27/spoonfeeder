@@ -7,9 +7,9 @@ export const getSemesters = () => api.get("/semesters");
 export const getSemestersByDepartment = (departmentId: number) =>
   api.get(`/semesters?departmentId=${departmentId}`);
 
-// Get semesters by department and college names
-export const getSemestersByNames = (departmentName: string, collegeName: string) =>
-  api.get(`/semesters?departmentName=${encodeURIComponent(departmentName)}&collegeName=${encodeURIComponent(collegeName)}`);
+// Get semesters by department and college IDs
+export const getSemestersByIds = (departmentId: number, collegeId: number) =>
+  api.get(`/semesters?departmentId=${departmentId}&collegeId=${collegeId}`);
 
 // Create a semester
 export const createSemester = (name: string, departmentId: number) =>

@@ -129,14 +129,18 @@ export default function SettingsDropdown({ onSave }: SettingsDropdownProps) {
     const handleApply = async () => {
         if (!isFormValid) return;
 
-        // Find the actual names from the data arrays
+        // Find the objects and get their IDs
         const collegeObj = collegesData.find(c => c.id === Number(selectedCollege));
-        const collegeName = collegeObj ? collegeObj.name : selectedCollege;
+        const departmentObj = departmentsData.find(d => d.name === selectedDepartment);
+        const semesterObj = semestersData.find(s => s.name === selectedSemester);
 
         const newHierarchy = {
-            college: collegeName, // Store the name, not the ID
+            college: collegeObj?.name || selectedCollege, // Store the name for display
             department: selectedDepartment, // Already a name
-            semester: selectedSemester // Already a name
+            semester: selectedSemester, // Already a name
+            collegeId: Number(selectedCollege), // Store the ID
+            departmentId: departmentObj?.id || null, // Get the actual department ID
+            semesterId: semesterObj?.id || null // Get the actual semester ID
         };
 
         console.log('Saving hierarchy:', newHierarchy);

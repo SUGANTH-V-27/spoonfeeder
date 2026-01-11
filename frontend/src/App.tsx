@@ -65,8 +65,10 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<"login" | "register" | "content" | "heirarchy" | "collegeDepartment">("login");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Check if user has completed hierarchy setup
-  const hasHierarchy = localStorage.getItem('hierarchy') !== null;
+  // Helper function to check hierarchy (called when auth state changes)
+  const checkHasHierarchy = () => {
+    return isAuthenticated && localStorage.getItem('hierarchy') !== null;
+  };
 
   const navigateToLogin = () => setCurrentPage("login");
   const navigateToRegister = () => setCurrentPage("register");
@@ -83,7 +85,7 @@ function AppContent() {
     if (!isLoading) {
       if (isAuthenticated) {
         // User is authenticated
-        if (hasHierarchy) {
+        if (checkHasHierarchy()) {
           // User has completed hierarchy setup, go to content
           setCurrentPage("content");
         } else {
@@ -95,7 +97,7 @@ function AppContent() {
         setCurrentPage("login");
       }
     }
-  }, [isAuthenticated, isLoading, hasHierarchy]);
+  }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (

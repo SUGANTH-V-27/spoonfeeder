@@ -92,6 +92,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(response.token);
       setUser(response.user);
 
+      // Clear any existing user-specific caches from previous sessions
+      localStorage.removeItem('hierarchy');
+      localStorage.removeItem('contentMode');
+
+      // Clear all sessionStorage caches to prevent data leakage between users
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (error) {
+        console.error('Error clearing caches on login:', error);
+      }
+
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
 
@@ -112,6 +130,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setToken(response.token);
       setUser(response.user);
 
+      // Clear any existing caches for new user
+      localStorage.removeItem('hierarchy');
+      localStorage.removeItem('contentMode');
+
+      // Clear all sessionStorage caches
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (error) {
+        console.error('Error clearing caches on register:', error);
+      }
+
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
 
@@ -130,6 +166,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('hierarchy');
+    localStorage.removeItem('contentMode');
+
+    // Clear all sessionStorage caches
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+    } catch (error) {
+      console.error('Error clearing caches on logout:', error);
+    }
   };
 
   const value: AuthContextType = {

@@ -6,7 +6,7 @@ import { useHierarchy } from "../../context/HeirarchyContext";
 import { useAuth } from "../../context/AuthContext";
 import { getColleges, createCollege } from "../../api/colleges";
 import { getDepartments, createDepartment } from "../../api/department";
-import { createSemester, getSemestersByNames } from "../../api/semester";
+import { createSemester } from "../../api/semester";
 import { createCourse, deleteCourse } from "../../api/courses";
 import { createTopic, deleteTopic } from "../../api/topics";
 import { createSubtopic, deleteSubtopic, updateSubtopic, createSubtopicContent, getSubtopicContent, deleteSubtopicContent } from "../../api/subtopics";
@@ -201,12 +201,9 @@ const ContentView: React.FC<ContentViewProps> = ({
       let result;
       switch (showAddForm.mode) {
         case 'courses':
-          // For courses, we need to find the semester ID based on the current hierarchy
-          if (!hierarchy) return;
-          const semesterResponse = await getSemestersByNames(hierarchy.department, hierarchy.college);
-          const semester = semesterResponse.data.find((sem: any) => sem.name === hierarchy.semester);
-          if (!semester) return;
-          result = await createCourse(addFormData.name, semester.id);
+          // For courses, use the stored semester ID directly
+          if (!hierarchy || !hierarchy.semesterId) return;
+          result = await createCourse(addFormData.name, hierarchy.semesterId);
           // Refresh courses
           if (hierarchy) {
             loadCourses();
