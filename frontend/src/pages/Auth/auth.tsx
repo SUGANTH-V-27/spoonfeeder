@@ -116,6 +116,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [signupToken, setSignupToken] = useState<string | null>(null);
     const [resendCooldown, setResendCooldown] = useState(0);
     const [isResending, setIsResending] = useState(false);
+    const [otpAttempts, setOtpAttempts] = useState(0);
 
     useEffect(() => {
         if (resendCooldown <= 0) return;
@@ -124,12 +125,24 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     }, [resendCooldown]);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [name]: value
         }));
         setError(""); // Clear error when user types
-    }, []);
+
+        // Live password match feedback during signup password step
+        if (signupStep === 3 && (name === "password" || name === "confirmPassword")) {
+            const nextPassword = name === "password" ? value : formData.password;
+            const nextConfirm = name === "confirmPassword" ? value : formData.confirmPassword;
+            if (nextPassword && nextConfirm) {
+                setPasswordMatch(nextPassword === nextConfirm ? "match" : "mismatch");
+            } else {
+                setPasswordMatch("hidden");
+            }
+        }
+    }, [formData.password, formData.confirmPassword, signupStep]);
 
     const handleConfirmPasswordBlur = useCallback(() => {
         setMode("normal");
@@ -174,6 +187,8 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
             try {
                 await startSignup({ email: formData.email });
                 setSignupStep(2);
+                setOtpAttempts(0);
+                setResendCooldown(60);
             } catch (err: any) {
                 setError(err.response?.data?.error || "Failed to send OTP. Please try again.");
                 setMode("error");
@@ -193,6 +208,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                 setError("");
                 setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
             } catch (err: any) {
+                setOtpAttempts(prev => Math.min(prev + 1, 5));
                 setError(err.response?.data?.error || "Invalid OTP. Please try again.");
                 setMode("error");
             }
@@ -235,6 +251,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         setError("");
         setResendCooldown(0);
         setIsResending(false);
+        setOtpAttempts(0);
     };
 
     const handleResendOtp = async () => {
@@ -242,7 +259,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
             setError("Please enter a valid email to resend OTP");
             return;
         }
-        if (resendCooldown > 0 || isResending) return;
+        if (resendCooldown > 0 || isResending || otpAttempts >= 5) return;
         try {
             setIsResending(true);
             setError("");
@@ -723,18 +740,10 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                         style={{animationDelay: "0.5s"}}
                                         autoComplete="one-time-code"
                                     />
-                                    <div className="otp-hint fade-in" style={{animationDelay: "0.55s", textAlign: "center", fontSize: 12}}>
-                                        Code expires in 10 minutes. Max 5 attempts.
-                                    </div>
-                                    <div className="resend-otp fade-in" style={{animationDelay: "0.6s", textAlign: "center", marginTop: 12}}>
-                                        <button
-                                            type="button"
-                                            onClick={handleResendOtp}
-                                            disabled={isAuthenticating || isResending || resendCooldown > 0}
-                                            style={{padding: "8px 12px"}}
-                                        >
-                                            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : isResending ? "Resending..." : "Resend OTP"}
-                                        </button>
+                                    <div className="resend-otp fade-in" style={{animationDelay: "0.6s", textAlign: "right"}}>
+                                        <span className="forgot-password" style={{marginTop: 8, display: 'inline-block'}} onClick={handleResendOtp}>
+                                            {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : isResending ? "Resending..." : "Resend OTP"}
+                                        </span>
                                     </div>
                                 </>
                             )}
@@ -790,7 +799,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
                                 <button
                                     type="submit"
-                                    disabled={isAuthenticating || (signupStep === 3 && passwordsMismatch)}
+                                    disabled={isAuthenticating || (signupStep === 3 && passwordsMismatch) || (signupStep === 2 && otpAttempts >= 5)}
                                 >
                                     {isAuthenticating ? (
                                         <><span className="auth-spinner"></span>{signupStep === 1 ? "Sending OTP..." : signupStep === 2 ? "Verifying..." : "Creating account..."}</>
