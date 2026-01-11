@@ -3,6 +3,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import Login from "./pages/Auth/auth";
 import ContentView from "./pages/ContentView/ContentView";
 import CollegeDepartment from "./pages/CollegeDepartment/collegeDepartment";
+import PWAInstallPrompt from "./components/PWAInstallPrompt/PWAInstallPrompt";
 import { HierarchyProvider } from "./context/HeirarchyContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -170,6 +171,7 @@ function AppContent() {
   return (
     <HierarchyProvider>
       {renderPage()}
+      <PWAInstallPrompt />
     </HierarchyProvider>
   );
 }
