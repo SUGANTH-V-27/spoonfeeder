@@ -15,6 +15,7 @@ interface HeaderProps {
   onFullscreenToggle?: () => void;
   isFullscreen?: boolean;
   hasContent?: boolean;
+  sidebarCollapsed?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -27,10 +28,20 @@ const Header: React.FC<HeaderProps> = ({
   onAdminToggle,
   onFullscreenToggle,
   isFullscreen = false,
-  hasContent = false
+  hasContent = false,
+  sidebarCollapsed = true
 }) => {
   const { user, logout: authLogout, isAdmin } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
+
+  // Check if running as PWA
+  const isPWA = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           (window.navigator as any).standalone === true;
+  };
+
+  // In PWA mode, hide profile, modes, and fullscreen when sidebar is open
+  const shouldHideRightElements = isPWA() && !sidebarCollapsed;
 
   // Use actual user data from AuthContext, fallback to props if provided
   const email = user?.email || emailProp || "user@example.com";
@@ -106,7 +117,8 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-right">
-        {/* Mode Dropdown */}
+        {/* Mode Dropdown - Hide in PWA when sidebar is open */}
+        {!shouldHideRightElements && (
         <div className="mode-dropdown">
           <button
             className="mode-btn"
@@ -150,9 +162,10 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
+        )}
 
-        {/* Fullscreen Button - Only show when content is loaded */}
-        {hasContent && (
+        {/* Fullscreen Button - Only show when content is loaded, hide in PWA when sidebar is open, hide on mobile */}
+        {hasContent && !shouldHideRightElements && !isMobile && (
           <div className="fullscreen-btn-container">
             <button
               className="fullscreen-btn"
@@ -183,8 +196,8 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Admin Button - Only show for admin users */}
-        {isAdmin && (
+        {/* Admin Button - Only show for admin users, hide in PWA when sidebar is open */}
+        {isAdmin && !shouldHideRightElements && (
           <button
             className="admin-btn"
             onClick={onAdminToggle}
@@ -196,7 +209,8 @@ const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* User Profile Dropdown */}
+        {/* User Profile Dropdown - Hide in PWA when sidebar is open */}
+        {!shouldHideRightElements && (
         <div className="user-profile" ref={profileDropdownRef}>
           <button
             className="avatar"
@@ -276,6 +290,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
+        )}
       </div>
     </header>
   );

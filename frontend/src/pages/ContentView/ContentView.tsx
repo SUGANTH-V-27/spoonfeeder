@@ -641,6 +641,159 @@ const ContentView: React.FC<ContentViewProps> = ({
       contentMain.style.transition = `margin-left 260ms cubic-bezier(0.4, 0, 0.2, 1), width 260ms cubic-bezier(0.4, 0, 0.2, 1)`;
     }, [sidebarCollapsed]);
 
+    // Swipe gesture for mobile PWA: swipe right to open sidebar
+    useEffect(() => {
+      // Check if running as PWA (need to define here since it's used in dependency)
+      const checkPWA = () => {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+               (window.navigator as any).standalone === true;
+      };
+
+      // Only enable swipe for mobile PWA devices
+      if (!isMobile() || !checkPWA() || isFullscreen) {
+        return;
+      }
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
+      let touchStartedOnSidebar = false;
+      const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
+      const SWIPE_TIME_THRESHOLD = 300; // Maximum time for swipe (ms)
+      const MAX_VERTICAL_DISTANCE = 100; // Maximum vertical distance to consider it a horizontal swipe
+
+      const handleTouchStart = (e: Event) => {
+        const touchEvent = e as TouchEvent;
+        const target = touchEvent.target as HTMLElement;
+        
+        // Ignore touches on specific interactive elements (back button, inputs, non-sidebar buttons)
+        // Allow touches on nav-link (sidebar widgets) to enable swipe detection
+        if (target && (
+          target.tagName === 'INPUT' ||
+          (target.closest('.sidebar-back-icon') !== null) // Back button only
+        )) {
+          touchStartX = 0;
+          touchStartY = 0;
+          touchStartTime = 0;
+          touchStartedOnSidebar = false;
+          return;
+        }
+        
+        // Track if touch started on sidebar (including widgets)
+        touchStartedOnSidebar = target ? target.closest('.sidebar') !== null : false;
+        
+        const touch = touchEvent.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchStartTime = Date.now();
+      };
+
+      const handleTouchEnd = (e: Event) => {
+        if (!touchStartX || !touchStartY) return;
+
+        const touchEvent = e as TouchEvent;
+        const touch = touchEvent.changedTouches[0];
+        const touchEndX = touch.clientX;
+        const touchEndY = touch.clientY;
+        const touchEndTime = Date.now();
+
+        const deltaX = touchEndX - touchStartX; // Positive if swiped right (left to right), negative if swiped left (right to left)
+        const deltaY = Math.abs(touchStartY - touchEndY);
+        const deltaTime = touchEndTime - touchStartTime;
+        const absDeltaX = Math.abs(deltaX);
+
+        // Check if it's a valid swipe: fast enough, mostly horizontal
+        if (
+          absDeltaX > SWIPE_THRESHOLD &&
+          deltaTime < SWIPE_TIME_THRESHOLD &&
+          deltaY < MAX_VERTICAL_DISTANCE
+        ) {
+          // Use the stored value from touchStart to know if swipe started on sidebar
+          if (touchStartedOnSidebar && !sidebarCollapsed) {
+            // Swipe right on sidebar to navigate back in hierarchy
+            if (deltaX > SWIPE_THRESHOLD) {
+              // Hierarchy: Courses -> Topics -> Subtopics
+              // Navigation back: Subtopics -> Topics -> Courses
+              if (selectedTopic) {
+                // Currently viewing subtopics -> go back to topics view
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedTopic(null);
+                // Reset touch start values immediately to prevent click
+                touchStartX = 0;
+                touchStartY = 0;
+                touchStartTime = 0;
+                return;
+              } else if (selectedCourse) {
+                // Currently viewing topics -> go back to courses view
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedCourse(null);
+                // Reset touch start values immediately to prevent click
+                touchStartX = 0;
+                touchStartY = 0;
+                touchStartTime = 0;
+                return;
+              }
+              // If in courses view (both null), do nothing
+            }
+            // Swipe left (right to left) to close sidebar when open
+            else if (deltaX < -SWIPE_THRESHOLD) {
+              e.preventDefault();
+              e.stopPropagation();
+              setSidebarCollapsed(true);
+              // Reset touch start values immediately to prevent click
+              touchStartX = 0;
+              touchStartY = 0;
+              touchStartTime = 0;
+              return;
+            }
+          } else {
+            // Swipe right (left to right) to open sidebar when closed
+            if (deltaX > SWIPE_THRESHOLD && sidebarCollapsed) {
+              setSidebarCollapsed(false);
+            }
+            // Swipe left (right to left) to close sidebar when open (outside sidebar)
+            else if (deltaX < -SWIPE_THRESHOLD && !sidebarCollapsed && !touchStartedOnSidebar) {
+              setSidebarCollapsed(true);
+            }
+          }
+        }
+
+        // Reset touch start values
+        touchStartX = 0;
+        touchStartY = 0;
+        touchStartTime = 0;
+        touchStartedOnSidebar = false;
+      };
+
+      // Add touch event listeners to the content view and sidebar
+      const contentView = document.querySelector('.content-view');
+      const sidebar = document.querySelector('.sidebar');
+      
+      if (contentView) {
+        contentView.addEventListener('touchstart', handleTouchStart, { passive: true });
+        contentView.addEventListener('touchend', handleTouchEnd, { passive: false }); // Need preventDefault
+      }
+      
+      // Also listen on sidebar when it's open (for swipe navigation and close)
+      if (sidebar && !sidebarCollapsed) {
+        sidebar.addEventListener('touchstart', handleTouchStart, { passive: true });
+        sidebar.addEventListener('touchend', handleTouchEnd, { passive: false }); // Need preventDefault
+      }
+
+      return () => {
+        if (contentView) {
+          contentView.removeEventListener('touchstart', handleTouchStart);
+          contentView.removeEventListener('touchend', handleTouchEnd);
+        }
+        if (sidebar) {
+          sidebar.removeEventListener('touchstart', handleTouchStart);
+          sidebar.removeEventListener('touchend', handleTouchEnd);
+        }
+      };
+    }, [sidebarCollapsed, isFullscreen, selectedTopic, selectedCourse]);
+
   const handleFullscreenToggle = () => {
     if (!isFullscreen) {
       // First close the sidebar, then enter fullscreen with smooth transition
@@ -2626,6 +2779,7 @@ const ContentView: React.FC<ContentViewProps> = ({
         onFullscreenToggle={handleFullscreenToggle}
         isFullscreen={isFullscreen}
         hasContent={!!contentData}
+        sidebarCollapsed={sidebarCollapsed}
       />
       )}
 
@@ -2650,7 +2804,6 @@ const ContentView: React.FC<ContentViewProps> = ({
 
         return (
           <Sidebar
-            key={`${sidebarMode}-${sidebarItems?.length || 0}`}
             isCollapsed={sidebarCollapsed}
             mode={sidebarMode}
             items={sidebarItems}
