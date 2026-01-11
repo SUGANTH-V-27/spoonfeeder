@@ -74,7 +74,14 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       setError(''); // Clear previous errors
       const response = await getColleges();
       if (reqId !== collegeReqId.current) return; // stale response
-      setColleges(Array.isArray(response.data) ? response.data : []);
+      
+      const collegesData = Array.isArray(response.data) ? response.data : [];
+      setColleges(collegesData);
+      
+      // If we got a successful response but no colleges, this is a data issue
+      if (collegesData.length === 0) {
+        setError('No colleges found in the database. Please contact an administrator to add colleges.');
+      }
     } catch (err: any) {
       if (reqId !== collegeReqId.current) return;
       console.error('Failed to load colleges:', err);
@@ -83,19 +90,31 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
       if (err.response?.status === 401) {
         setError('Your session has expired. Please log in again.');
         setTimeout(() => window.location.href = '/', 2000);
+        setColleges([]);
+        return;
+      }
+
+      // Check for network errors (no response from server)
+      if (!err.response) {
+        setError('Cannot connect to server. Please check your internet connection and ensure the backend is running.');
+        setColleges([]);
         return;
       }
 
       // For other errors, provide more specific messaging
       if (err.response?.status >= 500) {
-        setError('Server error occurred. Please try again later.');
+        setError('Server error occurred. Please try again later. If the problem persists, contact support.');
+      } else if (err.response?.status === 404) {
+        setError('Colleges endpoint not found. This may indicate a configuration issue.');
       } else {
-        setError('Failed to load colleges. Please check your internet connection and try again.');
+        setError(`Failed to load colleges (Error ${err.response?.status || 'unknown'}). Please try again.`);
       }
 
       setColleges([]);
     } finally {
-      setLoadingColleges(false);
+      if (reqId === collegeReqId.current) {
+        setLoadingColleges(false);
+      }
     }
   };
 
@@ -296,6 +315,11 @@ const CollegeDepartment = ({ onNavigateToContent }: CollegeDepartmentProps) => {
         ) : (
           <div className="no-data">
             <p>No colleges available</p>
+            {!error && (
+              <p style={{ fontSize: '13px', marginTop: '8px', opacity: 0.7 }}>
+                This may indicate the database is empty or there's a connection issue.
+              </p>
+            )}
           </div>
         )}
       </div>

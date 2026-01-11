@@ -8,30 +8,51 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['brain-favi.png', 'manifest.json'],
+      includeAssets: ['brain-logo.png', 'brain-favi.png'],
+      manifestFilename: 'manifest.json',
       manifest: {
         name: 'Spoonfeeder',
         short_name: 'Spoonfeeder',
-        description: 'Educational content platform',
-        theme_color: '#000000',
-        background_color: '#ffffff',
+        description: 'Your personalized educational content platform',
+        theme_color: '#0E0E10',
+        background_color: '#0E0E10',
         display: 'standalone',
+        orientation: 'portrait-primary',
         start_url: '/',
+        scope: '/',
         icons: [
           {
-            src: '/brain-favi.png',
+            src: '/brain-logo.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: '/brain-favi.png',
+            src: '/brain-logo.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/logo/web/icon-192-maskable.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/logo/web/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: [
+          'logo/android/**/*',
+          'logo/ios/**/*'
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/pdf-storage\.suganthr09\.workers\.dev\/.*/i,

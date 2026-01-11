@@ -66,6 +66,12 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<"login" | "register" | "content" | "heirarchy" | "collegeDepartment">("login");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Check if running as PWA (already installed)
+  const isPWA = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           (window.navigator as any).standalone === true;
+  };
+
   // Helper function to check hierarchy (called when auth state changes)
   const checkHasHierarchy = () => {
     return isAuthenticated && localStorage.getItem('hierarchy') !== null;
@@ -100,7 +106,9 @@ function AppContent() {
     }
   }, [isAuthenticated, isLoading]);
 
-  if (isLoading) {
+  // Skip loading screen in PWA mode to avoid duplicate splash screen
+  // The native PWA splash screen already handles the initial loading
+  if (isLoading && !isPWA()) {
     return (
       <div style={{
         display: 'flex',

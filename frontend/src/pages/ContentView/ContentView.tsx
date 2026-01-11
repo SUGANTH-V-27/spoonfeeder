@@ -418,12 +418,16 @@ const ContentView: React.FC<ContentViewProps> = ({
       loadContentData();
       setOpenResources(new Set()); // Clear open resources when switching subtopics
       setPlayingVideos({}); // Clear playing videos when switching subtopics
+      // Exit fullscreen and unlock orientation for mobile
+      handlePauseVideo();
       setLoadingResources(new Set()); // Clear loading resources when switching subtopics
     } else {
       setContentData(null);
       setLoadedSections(new Set()); // Clear loaded sections
       setOpenResources(new Set()); // Clear open resources
       setPlayingVideos({}); // Clear playing videos
+      // Exit fullscreen and unlock orientation for mobile
+      handlePauseVideo();
       setLoadingResources(new Set()); // Clear loading resources
     }
   }, [selectedSubtopic]);
@@ -699,6 +703,8 @@ const ContentView: React.FC<ContentViewProps> = ({
         } else if (openResources.size > 0) {
           // Enter fullscreen for the first open resource - pause any playing videos
           setPlayingVideos({}); // Pause all videos when entering resource fullscreen
+          // Exit fullscreen and unlock orientation for mobile
+          handlePauseVideo();
           const firstOpenResourceId = Array.from(openResources)[0];
           setLoadingResources(prev => new Set([...prev, firstOpenResourceId])); // Show loading for fullscreen
           setFullscreenResource(firstOpenResourceId);
@@ -855,10 +861,218 @@ const ContentView: React.FC<ContentViewProps> = ({
     return `${baseUrl}/${thumbnailQualities[qualityIndex]}.jpg`;
   };
 
-  const handlePlayVideo = (id: string) => {
+   // Check if running as PWA
+  const isPWA = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           (window.navigator as any).standalone === true;
+  };
+
+  const handlePlayVideo = async (id: string) => {
     setPlayingVideos({ ...playingVideos, [id]: true });
     setLoadingVideos(prev => new Set(prev).add(id));
+    
+    // Lock screen orientation to landscape when video starts playing (for PWA on mobile)
+    if (isMobile() && isPWA()) {
+      try {
+        if ('screen' in window && 'orientation' in window.screen) {
+          const screenOrientation = (window.screen as any).orientation;
+          if (screenOrientation && screenOrientation.lock) {
+            await screenOrientation.lock('landscape');
+            console.log('Screen orientation locked to landscape for video playback');
+          } else if (screenOrientation && screenOrientation.unlock) {
+            // Fallback to unlock if lock is not available
+            await screenOrientation.unlock();
+            console.log('Screen orientation unlocked for video playback');
+          }
+        }
+      } catch (error) {
+        console.log('Could not lock screen orientation to landscape:', error);
+        // Try unlock as fallback
+        try {
+          if ('screen' in window && 'orientation' in window.screen) {
+            const screenOrientation = (window.screen as any).orientation;
+            if (screenOrientation && screenOrientation.unlock) {
+              await screenOrientation.unlock();
+            }
+          }
+        } catch (unlockError) {
+          console.log('Could not unlock screen orientation:', unlockError);
+        }
+      }
+    }
   };
+
+  // Handle video pause/stop to exit fullscreen and unlock orientation on mobile PWA
+  const handlePauseVideo = async () => {
+    if (isMobile() && isPWA()) {
+      try {
+        // Exit fullscreen if active
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+        // Unlock orientation when videos stop
+        if ('screen' in window && 'orientation' in window.screen) {
+          const screenOrientation = (window.screen as any).orientation;
+          if (screenOrientation && screenOrientation.unlock) {
+            await screenOrientation.unlock();
+            console.log('Screen orientation unlocked after video pause');
+          }
+        }
+      } catch (error) {
+        console.log('Failed to exit fullscreen or unlock orientation:', error);
+      }
+    }
+  };
+
+  // Handle orientation for video playback in PWA
+  useEffect(() => {
+    if (!isMobile() || !isPWA()) return;
+
+    const hasPlayingVideos = Object.keys(playingVideos).length > 0 &&
+                             Object.values(playingVideos).some(v => v === true);
+
+    if (hasPlayingVideos) {
+      // Lock orientation to landscape when videos are playing
+      const lockOrientationToLandscape = async () => {
+        try {
+          if ('screen' in window && 'orientation' in window.screen) {
+            const screenOrientation = (window.screen as any).orientation;
+            if (screenOrientation && screenOrientation.lock) {
+              await screenOrientation.lock('landscape');
+            } else if (screenOrientation && screenOrientation.unlock) {
+              // Fallback to unlock if lock is not available
+              await screenOrientation.unlock();
+            }
+          }
+        } catch (error) {
+          // Fallback: try to unlock if lock fails
+          try {
+            if ('screen' in window && 'orientation' in window.screen) {
+              const screenOrientation = (window.screen as any).orientation;
+              if (screenOrientation && screenOrientation.unlock) {
+                await screenOrientation.unlock();
+              }
+            }
+          } catch (unlockError) {
+            console.log('Orientation lock/unlock not available');
+          }
+        }
+      };
+
+      lockOrientationToLandscape();
+      // Periodically try to lock to landscape (in case it gets locked by system)
+      const interval = setInterval(lockOrientationToLandscape, 2000);
+      return () => {
+        clearInterval(interval);
+        // Unlock orientation when videos stop playing
+        if ('screen' in window && 'orientation' in window.screen) {
+          const screenOrientation = (window.screen as any).orientation;
+          if (screenOrientation && screenOrientation.unlock) {
+            try {
+              const unlockResult = screenOrientation.unlock();
+              // Check if unlock returns a Promise before calling catch
+              if (unlockResult && typeof unlockResult.catch === 'function') {
+                unlockResult.catch(() => {
+                  // Ignore errors when unlocking on cleanup
+                });
+              }
+            } catch (error) {
+              // Ignore errors when unlocking on cleanup
+            }
+          }
+        }
+      };
+    } else {
+      // No videos playing - unlock orientation
+      if ('screen' in window && 'orientation' in window.screen) {
+        const screenOrientation = (window.screen as any).orientation;
+        if (screenOrientation && screenOrientation.unlock) {
+          try {
+            const unlockResult = screenOrientation.unlock();
+            // Check if unlock returns a Promise before calling catch
+            if (unlockResult && typeof unlockResult.catch === 'function') {
+              unlockResult.catch(() => {
+                // Ignore errors when unlocking
+              });
+            }
+          } catch (error) {
+            // Ignore errors when unlocking
+          }
+        }
+      }
+    }
+  }, [playingVideos]);
+
+  // Lock screen orientation to landscape when video enters fullscreen
+  useEffect(() => {
+    if (!isMobile() || !isPWA()) return;
+
+    const handleFullscreenChange = async () => {
+      const fullscreenElement = document.fullscreenElement;
+      
+      // Check if fullscreen element is a video iframe or contains one
+      const isVideoFullscreen = fullscreenElement && (
+        fullscreenElement.tagName === 'IFRAME' ||
+        fullscreenElement.querySelector('iframe')
+      );
+
+      if (isVideoFullscreen) {
+        // Lock screen orientation to landscape when video is in fullscreen
+        try {
+          if ('screen' in window && 'orientation' in window.screen) {
+            const screenOrientation = (window.screen as any).orientation;
+            if (screenOrientation && screenOrientation.lock) {
+              await screenOrientation.lock('landscape');
+              console.log('Screen orientation locked to landscape for video');
+            } else if (screenOrientation && screenOrientation.unlock) {
+              // Fallback to unlock if lock is not available
+              await screenOrientation.unlock();
+              console.log('Screen orientation unlocked for video');
+            }
+          }
+        } catch (error) {
+          console.log('Could not lock screen orientation to landscape:', error);
+          // Try unlock as fallback
+          try {
+            if ('screen' in window && 'orientation' in window.screen) {
+              const screenOrientation = (window.screen as any).orientation;
+              if (screenOrientation && screenOrientation.unlock) {
+                await screenOrientation.unlock();
+              }
+            }
+          } catch (unlockError) {
+            console.log('Could not unlock screen orientation:', unlockError);
+          }
+        }
+      } else if (!fullscreenElement) {
+        // Video exited fullscreen - unlock orientation
+        try {
+          if ('screen' in window && 'orientation' in window.screen) {
+            const screenOrientation = (window.screen as any).orientation;
+            if (screenOrientation && screenOrientation.unlock) {
+              await screenOrientation.unlock();
+              console.log('Screen orientation unlocked after exiting fullscreen');
+            }
+          }
+        } catch (error) {
+          console.log('Could not unlock screen orientation:', error);
+        }
+      }
+    };
+
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // NOTE: parseStructuredText function is deprecated - now using MarkdownRenderer for automatic Markdown + LaTeX rendering
   // Keeping the function for parseInlineFormatting which is still used for question rendering
@@ -1483,7 +1697,7 @@ const ContentView: React.FC<ContentViewProps> = ({
                           {playingVideos[videoId] ? (
                   <iframe
                               src={`https://www.youtube.com/embed/${getYoutubeId(video.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
-                    allow="autoplay; encrypted-media"
+                    allow="autoplay; encrypted-media; fullscreen"
                     allowFullScreen
                               onLoad={() => {
                                 setLoadingVideos(prev => {
@@ -1757,6 +1971,8 @@ const ContentView: React.FC<ContentViewProps> = ({
                                 className="resource-fullscreen-btn"
                                 onClick={() => {
                                   setPlayingVideos({}); // Pause all videos when entering resource fullscreen
+                                  // Exit fullscreen and unlock orientation for mobile
+                                  handlePauseVideo();
                                   setLoadingResources(prev => new Set([...prev, res.id])); // Show loading for fullscreen
                                   setFullscreenResource(res.id);
                                 }}
@@ -2614,14 +2830,12 @@ const ContentView: React.FC<ContentViewProps> = ({
                   <button className="admin-submit-btn" onClick={handleAdminSubmit}>Add Semester</button>
                 </div>
               )}
-
-
             </div>
           </div>
         )}
 
       </div>
-    </div>
+    </div> 
   );
 };
 

@@ -14,14 +14,32 @@ const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
+  // Detect mobile device
+  const isMobile = () => {
+    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // Check if running as PWA (already installed)
+  const isPWA = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           (window.navigator as any).standalone === true;
+  };
+
   useEffect(() => {
+    // Only show prompt on mobile devices and not if already installed as PWA
+    if (!isMobile() || isPWA()) {
+      return;
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show the install prompt
-      setShowPrompt(true);
+      // Show the install prompt only on mobile
+      if (isMobile()) {
+        setShowPrompt(true);
+      }
     };
 
     const handleAppInstalled = () => {
@@ -60,12 +78,15 @@ const PWAInstallPrompt: React.FC = () => {
     setShowPrompt(false);
   };
 
-  if (!showPrompt) return null;
+  // Don't show prompt if not mobile, already installed as PWA, or if prompt is not set to show
+  if (!isMobile() || isPWA() || !showPrompt) return null;
 
   return (
     <div className="pwa-install-prompt">
       <div className="pwa-install-content">
-        <div className="pwa-install-icon">📱</div>
+        <div className="pwa-install-icon">
+          <img src="/brain-logo.png" alt="Spoonfeeder Logo" />
+        </div>
         <div className="pwa-install-text">
           <h3>Install Spoonfeeder</h3>
           <p>Get the full app experience with offline access and faster loading!</p>
