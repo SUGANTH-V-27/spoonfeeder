@@ -12,7 +12,7 @@
   left: 0;
   right: 0;
   z-index: 100;
-  gap: 24px;
+  gap: 18px;
 }
 
 .header-left {
@@ -53,8 +53,11 @@
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: fit-content;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 /* ================= Register Link ================= */
@@ -139,6 +142,23 @@
   z-index: 1000;
   animation: fadeInDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(16px);
+}
+
+.profile-dropdown.profile-dropdown-overlay {
+  position: fixed;
+  top: 70px;
+  right: 12px;
+  left: 12px;
+  width: auto;
+  max-width: none;
+  z-index: 1100;
+}
+
+.profile-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1090;
 }
 
 @keyframes fadeInDown {
@@ -436,20 +456,42 @@
 /* ================= Responsive ================= */
 @media (max-width: 768px) {
   .header {
-    padding: 0 12px 0 3px;
+    padding: 0 10px 0 4px;
+    gap: 10px;
   }
 
   .header-left {
-    gap: 7px;
+    gap: 6px;
   }
 
   .header-logo h1 {
-    font-size: 18px;
+    font-size: 16px;
   }
 
-  .shortcut-tooltip {
-    font-size: 11px;
-    padding: 4px 8px;
+  .header-right {
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .menu-toggle-btn {
+    width: 48px;
+    padding: 6px;
+  }
+
+  .mode-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide admin panel button on mobile only */
+  .admin-btn {
+    display: none !important;
+  }
+
+  .profile-dropdown.profile-dropdown-overlay {
+    top: 70px;
+    right: 10px;
+    left: 10px;
   }
 }
 
