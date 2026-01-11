@@ -29,6 +29,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   isAuthenticating: boolean;
+  pendingSignupEmail: string | null;
+  signupToken: string | null;
   login: (data: LoginData) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   startSignup: (data: SignupInitPayload) => Promise<void>;
@@ -249,6 +251,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     isLoading,
     isAuthenticating,
+    pendingSignupEmail,
+    signupToken,
     login: handleLogin,
     register: handleRegister,
     startSignup,
