@@ -101,7 +101,7 @@ const isValidEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode = "login"}: LoginProps) {
-    const {login, register, isAuthenticating} = useAuth();
+    const {login, isAuthenticating, startSignup, verifySignup, completeSignup} = useAuth();
     const [eye, setEye] = useState({x: 0, y: 0});
     const [mode, setMode] = useState<Mode>("normal");
     const [peekDoll, setPeekDoll] = useState<string | null>(null);
@@ -112,6 +112,16 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         password: "",
         confirmPassword: ""
     });
+    const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
+    const [signupToken, setSignupToken] = useState<string | null>(null);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [isResending, setIsResending] = useState(false);
+
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const timer = setInterval(() => setResendCooldown(prev => prev - 1), 1000);
+        return () => clearInterval(timer);
+    }, [resendCooldown]);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData(prev => ({
@@ -156,31 +166,95 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         e.preventDefault();
         setError("");
 
-        // Validate password match before submitting
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
-            setPasswordMatch("mismatch");
+        if (signupStep === 1) {
+            if (!isValidEmail(formData.email)) {
+                setError("Please enter a valid email");
+                return;
+            }
+            try {
+                await startSignup({ email: formData.email });
+                setSignupStep(2);
+            } catch (err: any) {
+                setError(err.response?.data?.error || "Failed to send OTP. Please try again.");
+                setMode("error");
+            }
             return;
         }
 
-        if (!formData.password || !formData.confirmPassword) {
-            setError("Please fill in all fields");
+        if (signupStep === 2) {
+            if (!formData.confirmPassword) {
+                setError("Please enter the OTP sent to your email");
+                return;
+            }
+            try {
+                const token = await verifySignup({ email: formData.email, otp: formData.confirmPassword });
+                setSignupToken(token);
+                setSignupStep(3);
+                setError("");
+                setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
+            } catch (err: any) {
+                setError(err.response?.data?.error || "Invalid OTP. Please try again.");
+                setMode("error");
+            }
             return;
         }
 
-    try {
-      await register({
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword
-      });
-      onNavigateToCollegeDepartment();
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Registration failed. Please try again.");
-      setMode("error");
-    }
-  }, [formData, register, onNavigateToCollegeDepartment]);
+        if (signupStep === 3) {
+            // Validate password match before submitting
+            if (formData.password !== formData.confirmPassword) {
+                setError("Passwords do not match");
+                setPasswordMatch("mismatch");
+                return;
+            }
 
+            if (!formData.password || !formData.confirmPassword) {
+                setError("Please fill in all fields");
+                return;
+            }
+
+            if (!signupToken) {
+                setError("Missing signup token. Please restart signup.");
+                setSignupStep(1);
+                return;
+            }
+
+            try {
+                await completeSignup({ email: formData.email, signupToken, password: formData.password });
+                onNavigateToCollegeDepartment();
+            } catch (err: any) {
+                setError(err.response?.data?.error || "Registration failed. Please try again.");
+                setMode("error");
+            }
+        }
+    }, [signupStep, formData, startSignup, verifySignup, completeSignup, onNavigateToCollegeDepartment]);
+
+    const resetSignupFlow = () => {
+        setSignupStep(1);
+        setSignupToken(null);
+        setFormData({ email: "", password: "", confirmPassword: "" });
+        setError("");
+        setResendCooldown(0);
+        setIsResending(false);
+    };
+
+    const handleResendOtp = async () => {
+        if (!isValidEmail(formData.email)) {
+            setError("Please enter a valid email to resend OTP");
+            return;
+        }
+        if (resendCooldown > 0 || isResending) return;
+        try {
+            setIsResending(true);
+            setError("");
+            await startSignup({ email: formData.email });
+            setResendCooldown(60); // 60s cooldown between resends
+        } catch (err: any) {
+            setError(err.response?.data?.error || "Failed to resend OTP. Please try again.");
+            setMode("error");
+        } finally {
+            setIsResending(false);
+        }
+    };
 
     const [showPwd, setShowPwd] = useState(false);
     const [enter, setEnter] = useState(false);
@@ -607,109 +681,144 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: 'transform, opacity'}}
                         >
-                            <h2 className={fade ? "fade-in" : ""} style={{animationDelay: "0.3s"}}>Create Account</h2>
-                            <p className="subtitle" style={{animationDelay: "0.4s", textAlign: "center"}}>Sign up to get
-                                started with
-                                Spoonfeeder</p>
+                            <h2 className={fade ? "fade-in" : ""} style={{animationDelay: "0.3s"}}>
+                                {signupStep === 1 ? "Create Account" : signupStep === 2 ? "Enter OTP" : "Set Password"}
+                            </h2>
+                            <p className="subtitle" style={{animationDelay: "0.4s", textAlign: "center"}}>
+                                {signupStep === 1 ? "Sign up to get started with Spoonfeeder" : signupStep === 2 ? "We've sent a 6-digit code to your email" : "Choose a strong password"}
+                            </p>
 
-                            {/* Show error message if exists */}
                             {error && (
                                 <div className="error-message fade-in" style={{animationDelay: "0.45s"}}>
                                     {error}
                                 </div>
                             )}
 
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="Email"
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                onFocus={() => setMode("email")}
-                                onBlur={() => setMode("normal")}
-                                className={fade ? "fade-in" : ""}
-                                style={{animationDelay: "0.5s"}}
-                            />
-
-                            <div className="password-wrapper fade-in" style={{animationDelay: "0.6s"}}>
+                            {signupStep === 1 && (
                                 <input
-                                    type={showPwd ? "text" : "password"}
-                                    name="password"
-                                    placeholder="Password"
-                                    value={formData.password}
+                                    type="email"
+                                    name="email"
+                                    placeholder="Email"
+                                    value={formData.email}
                                     onChange={handleInputChange}
-                                    onFocus={() => {
-                                        setMode("password");
-                                        setPeekDoll(null);
-                                    }}
+                                    onFocus={() => setMode("email")}
                                     onBlur={() => setMode("normal")}
+                                    className={fade ? "fade-in" : ""}
+                                    style={{animationDelay: "0.5s"}}
+                                    autoComplete="email"
                                 />
-                                <span
-                                    className="show-pwd"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        toggleShowPwd();
-                                    }}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                >
-                      {showPwd ? "Hide" : "Show"}
-                    </span>
-                            </div>
+                            )}
 
-                            <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
-                                <input
-                                    style={{marginBottom: 0}}
-                                    type="password"
-                                    name="confirmPassword"
-                                    placeholder="Confirm Password"
-                                    value={formData.confirmPassword}
-                                    onChange={handleInputChange}
-                                    onFocus={() => {
-                                        setMode("password");
-                                        setPeekDoll(null);
-                                    }}
-                                    onBlur={handleConfirmPasswordBlur}
-                                />
-                                <span className={`password-match-icon ${passwordMatch}`}>
-    {passwordMatch === "match" ? "✓" : passwordMatch === "mismatch" ? "✕" : ""}
-  </span>
-                            </div>
+                            {signupStep === 2 && (
+                                <>
+                                    <input
+                                        type="text"
+                                        name="confirmPassword"
+                                        placeholder="Enter 6-digit OTP"
+                                        value={formData.confirmPassword}
+                                        onChange={handleInputChange}
+                                        onFocus={() => setMode("email")}
+                                        onBlur={() => setMode("normal")}
+                                        className={fade ? "fade-in" : ""}
+                                        style={{animationDelay: "0.5s"}}
+                                        autoComplete="one-time-code"
+                                    />
+                                    <div className="otp-hint fade-in" style={{animationDelay: "0.55s", textAlign: "center", fontSize: 12}}>
+                                        Code expires in 10 minutes. Max 5 attempts.
+                                    </div>
+                                    <div className="resend-otp fade-in" style={{animationDelay: "0.6s", textAlign: "center", marginTop: 12}}>
+                                        <button
+                                            type="button"
+                                            onClick={handleResendOtp}
+                                            disabled={isAuthenticating || isResending || resendCooldown > 0}
+                                            style={{padding: "8px 12px"}}
+                                        >
+                                            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : isResending ? "Resending..." : "Resend OTP"}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {signupStep === 3 && (
+                                <>
+                                    <div className="password-wrapper fade-in" style={{animationDelay: "0.5s"}}>
+                                        <input
+                                            type={showPwd ? "text" : "password"}
+                                            name="password"
+                                            placeholder="Password"
+                                            value={formData.password}
+                                            onChange={handleInputChange}
+                                            onFocus={() => {
+                                                setMode("password");
+                                                setPeekDoll(null);
+                                            }}
+                                            onBlur={() => setMode("normal")}
+                                        />
+                                        <span
+                                            className="show-pwd"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                toggleShowPwd();
+                                            }}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                        >
+                          {showPwd ? "Hide" : "Show"}
+                        </span>
+                                    </div>
+
+                                    <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.6s"}}>
+                                        <input
+                                            style={{marginBottom: 0}}
+                                            type="password"
+                                            name="confirmPassword"
+                                            placeholder="Confirm Password"
+                                            value={formData.confirmPassword}
+                                            onChange={handleInputChange}
+                                            onFocus={() => {
+                                                setMode("password");
+                                                setPeekDoll(null);
+                                            }}
+                                            onBlur={handleConfirmPasswordBlur}
+                                        />
+                                        <span className={`password-match-icon ${passwordMatch}`}>
+                            {passwordMatch === "match" ? "✓" : passwordMatch === "mismatch" ? "✕" : ""}
+                        </span>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
                                 <button
                                     type="submit"
-                                    disabled={isAuthenticating || passwordsMismatch}
+                                    disabled={isAuthenticating || (signupStep === 3 && passwordsMismatch)}
                                 >
                                     {isAuthenticating ? (
-                                        <><span className="auth-spinner"></span>Creating account...</>
+                                        <><span className="auth-spinner"></span>{signupStep === 1 ? "Sending OTP..." : signupStep === 2 ? "Verifying..." : "Creating account..."}</>
                                     ) : (
-                                        "Create Account"
+                                        signupStep === 1 ? "Send OTP" : signupStep === 2 ? "Verify OTP" : "Create Account"
                                     )}
                                 </button>
                             </div>
 
+                            {signupStep > 1 && (
+                                <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
+                                    <span onClick={resetSignupFlow}>Start over</span>
+                                </div>
+                            )}
 
-                            <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
-                                Already have an account? <span onClick={() => {
-                                setAuthMode("login");
-                                setError(""); // Clear error when switching modes
-                            }}>Sign in</span>
+                            <div className="signup fade-in" style={{animationDelay: "0.95s"}}>
+                                Already have an account? <span onClick={() => { setAuthMode("login"); resetSignupFlow(); }}>Sign in</span>
                             </div>
 
                             <div className="contact-section fade-in" style={{animationDelay: "1s"}}>
                                 <div className="contact-label">Contact us</div>
                                 <div className="contact-icons">
-                                    <a href="https://www.instagram.com/spoonfeeder.team/" target="_blank"
-                                       rel="noopener noreferrer"
+                                    <a href="https://www.instagram.com/spoonfeeder.team/" target="_blank" rel="noopener noreferrer"
                                        className="contact-icon" aria-label="Instagram">
                                         <InstagramIcon/>
                                     </a>
-                                    <a
-                                        href="https://mail.google.com/mail/?view=cm&to=teamspoonfeeder@gmail.com"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="contact-icon"
-                                    >
+                                    <a href="https://mail.google.com/mail/?view=cm&to=teamspoonfeeder@gmail.com" className="contact-icon"
+                                       aria-label="Email">
                                         <EmailIcon/>
                                     </a>
 
