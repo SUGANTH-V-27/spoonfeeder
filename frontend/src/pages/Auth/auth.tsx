@@ -100,6 +100,128 @@ interface LoginProps {
 const isValidEmail = (value: string) =>
     /^[^\s@]+@gmail\.com$/i.test(value.trim());
 
+const OTP_LENGTH = 6;
+
+interface OtpInputProps {
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    autoFocus?: boolean;
+}
+
+function OtpInput({value, onChange, disabled, autoFocus}: OtpInputProps) {
+    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+    const [digits, setDigits] = useState<string[]>(() =>
+        Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? "")
+    );
+
+    useEffect(() => {
+        setDigits(Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? ""));
+    }, [value]);
+
+    const focusAt = (idx: number) => {
+        const input = inputsRef.current[idx];
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    };
+
+    const updateDigits = (next: string[], focusIndex?: number) => {
+        const joined = next.join("").slice(0, OTP_LENGTH);
+        setDigits(next);
+        onChange(joined);
+        if (focusIndex !== undefined) {
+            focusAt(Math.min(Math.max(focusIndex, 0), OTP_LENGTH - 1));
+        }
+    };
+
+    const handleChange = (idx: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (disabled) return;
+        const cleaned = e.target.value.replace(/\D/g, "");
+        if (!cleaned) {
+            const next = [...digits];
+            next[idx] = "";
+            updateDigits(next, idx);
+            return;
+        }
+        const chars = cleaned.split("");
+        const next = [...digits];
+        let cursor = idx;
+        for (let i = 0; i < chars.length && cursor < OTP_LENGTH; i++) {
+            next[cursor] = chars[i];
+            cursor++;
+        }
+        updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
+    };
+
+    const handleKeyDown = (idx: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (disabled) return;
+        const key = e.key;
+        if (key === "Backspace") {
+            if (digits[idx]) {
+                const next = [...digits];
+                next[idx] = "";
+                updateDigits(next, idx);
+            } else if (idx > 0) {
+                const next = [...digits];
+                next[idx - 1] = "";
+                updateDigits(next, idx - 1);
+            }
+            e.preventDefault();
+        } else if (key === "ArrowLeft") {
+            focusAt(Math.max(idx - 1, 0));
+            e.preventDefault();
+        } else if (key === "ArrowRight") {
+            focusAt(Math.min(idx + 1, OTP_LENGTH - 1));
+            e.preventDefault();
+        } else if (key.length === 1 && !/[0-9]/.test(key)) {
+            e.preventDefault();
+        }
+    };
+
+    const handlePaste = (idx: number) => (e: React.ClipboardEvent<HTMLInputElement>) => {
+        if (disabled) return;
+        const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+        if (!pasted) return;
+        e.preventDefault();
+        const next = [...digits];
+        let cursor = idx;
+        for (const char of pasted) {
+            if (cursor >= OTP_LENGTH) break;
+            next[cursor] = char;
+            cursor++;
+        }
+        updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
+    };
+
+    return (
+        <div className="otp-wrapper fade-in" style={{animationDelay: "0.5s"}}>
+            <div className="otp-container" role="group" aria-label="One time password">
+                {Array.from({length: OTP_LENGTH}).map((_, idx) => (
+                    <input
+                        key={idx}
+                        ref={el => inputsRef.current[idx] = el}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete={idx === 0 ? "one-time-code" : undefined}
+                        className={`otp-input ${digits[idx] ? "filled" : ""}`}
+                        maxLength={1}
+                        value={digits[idx] ?? ""}
+                        onChange={handleChange(idx)}
+                        onKeyDown={handleKeyDown(idx)}
+                        onPaste={handlePaste(idx)}
+                        disabled={disabled}
+                        autoFocus={autoFocus && idx === 0}
+                        aria-label={`Digit ${idx + 1}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode = "login"}: LoginProps) {
     const {login, isAuthenticating, startSignup, verifySignup, challengeToken} = useAuth();
     const [eye, setEye] = useState({x: 0, y: 0});
@@ -116,6 +238,9 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [localChallenge, setLocalChallenge] = useState<string | null>(null);
     const [resendCooldown, setResendCooldown] = useState(0);
     const [isResending, setIsResending] = useState(false);
+    const [otpValue, setOtpValue] = useState("");
+
+// ...existing code...
 
     useEffect(() => {
         if (resendCooldown <= 0) return;
@@ -173,6 +298,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                 setResendCooldown(60);
                 setError("");
                 setFormData(prev => ({ ...prev, confirmPassword: "" }));
+                setOtpValue("");
             } catch (err: any) {
                 setError(err.response?.data?.error || "Failed to send OTP. Please try again.");
                 setMode("error");
@@ -205,6 +331,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         setSignupStep(1);
         setLocalChallenge(null);
         setFormData({ email: "", password: "", confirmPassword: "" });
+        setOtpValue("");
         setError("");
         setResendCooldown(0);
         setIsResending(false);
@@ -727,19 +854,14 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
 
                             {signupStep === 2 && (
                                 <>
-                                    <input
-                                        type="text"
-                                        name="confirmPassword"
-                                        placeholder="Enter 6-digit OTP"
-                                        value={formData.confirmPassword}
-                                        onChange={handleInputChange}
-                                        onFocus={() => setMode("email")}
-                                        onBlur={() => setMode("normal")}
-                                        className={fade ? "fade-in" : ""}
-                                        style={{animationDelay: "0.5s"}}
-                                        autoComplete="one-time-code"
-                                        maxLength={6}
-                                        required
+                                    <OtpInput
+                                        value={otpValue || formData.confirmPassword}
+                                        onChange={(next) => {
+                                            setOtpValue(next);
+                                            setFormData(prev => ({ ...prev, confirmPassword: next }));
+                                        }}
+                                        disabled={isAuthenticating}
+                                        autoFocus
                                     />
                                     <div className="resend-otp fade-in" style={{animationDelay: "0.6s", textAlign: "right"}}>
                                         <span className="forgot-password" style={{marginTop: 8, display: 'inline-block'}} onClick={handleResendOtp}>
