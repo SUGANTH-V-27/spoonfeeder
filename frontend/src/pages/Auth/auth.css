@@ -316,8 +316,6 @@ html, body {
     border-radius: 10px;
     padding: 2px;
     margin-top: 0;
-    transform: translateY(0);            /* base */
-    transition: transform 0.25s ease;    /* smooth */
     z-index: 1;
 }
 
@@ -332,14 +330,11 @@ html, body {
 }
 
 .button-container:hover:not(.disabled-wrapper) {
-    /*transform: translateY(-2px);*/
-    transition: transform 0.25s ease;
-    text-align: center;
+    /* hover handled by button background change */
 }
 
 .button-container:hover:not(.disabled-wrapper)::before {
-    transition: 0.2s ease-in;
-    text-align: center;
+    /* no effect needed */
 }
 
 .button-container button {
@@ -363,10 +358,8 @@ html, body {
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transform: translateY(0) scale(1);         /* base */
-    transition: transform 0.25s ease,
+    transition: background 0.2s ease,
     box-shadow 0.25s ease,
-    background 0.25s ease,
     opacity 0.25s ease;
     position: relative;
     overflow: visible;
@@ -388,20 +381,14 @@ html, body {
 }
 
 .right-panel button:hover:not(:disabled) {
-    transform: translateY(-2px) scale(1.02);
-    text-align: center;
+    background: #1d4ed8;
 }
 
 .right-panel button:hover:not(:disabled)::before {
-    opacity: 1;
-    transition: 0.2s ease-in;
-    text-align: center;
+    opacity: 0;
 }
 
 .right-panel button:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4),
-    0 0 12px rgba(37, 99, 235, 0.2);
     background: #1e40af;
     transition: all 0.1s ease;
 }
@@ -410,7 +397,6 @@ html, body {
     opacity: 0.5;
     cursor: not-allowed;
     box-shadow: none;
-    transform: none;
 }
 
 
@@ -612,18 +598,23 @@ html, body {
 .contact-icon svg,
 .contact-icon svg path {
     fill: currentColor;
-    transition: fill 0.3s ease;
+    transition: fill 0.3s ease, color 0.3s ease;
 }
 
 .contact-icon:hover {
-    color: var(--primary-accent);
+    color: var(--primary-accent) !important;
     transform: translateY(-2px) scale(1.1);
     cursor:pointer;
 }
 
+.contact-icon:hover svg,
+.contact-icon:hover svg path {
+    fill: var(--primary-accent) !important;
+}
+
 /* WhatsApp hover uses the same blue/transform as others */
 .contact-icon[href*="wa.me"]:hover {
-    color: var(--primary-accent);
+    color: var(--primary-accent) !important;
     transform: translateY(-2px) scale(1.1);
 }
 
@@ -635,6 +626,19 @@ html, body {
     outline: none;
     box-shadow: none;
     color: var(--text-secondary);
+}
+
+/* Ensure hover works on all contact icons including visited links */
+.contact-icons .contact-icon:hover,
+.contact-icons .contact-icon:visited:hover {
+    color: var(--primary-accent) !important;
+}
+
+.contact-icons .contact-icon:hover svg,
+.contact-icons .contact-icon:hover svg path,
+.contact-icons .contact-icon:visited:hover svg,
+.contact-icons .contact-icon:visited:hover svg path {
+    fill: var(--primary-accent) !important;
 }
 
 .doll.sleep .eyes span {
@@ -1290,13 +1294,19 @@ input[type="password"]::-webkit-clear-button {
 @media (hover: none) and (pointer: coarse) {
     .contact-icon,
     .show-pwd,
-    .forgot-password,
     .signup span {
         min-height: 44px;
         min-width: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+    }
+    .forgot-password {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        text-align: right;
     }
 }
 @media (max-width: 1200px) {
