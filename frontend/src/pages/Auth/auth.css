@@ -1097,6 +1097,12 @@ input[type="password"]::-webkit-clear-button {
         margin-bottom: 12px;
         min-height: 42px;
     }
+    .forgot-password {
+        /* force right alignment on small screens */
+        display: block;
+        text-align: right;
+        margin-left: auto;
+    }
 }
 
 /* Mobile (portrait) */
@@ -1162,6 +1168,7 @@ input[type="password"]::-webkit-clear-button {
         font-size: 11px;
         margin-top: 4px;
         margin-bottom: 12px;
+        text-align:right;
     }
 
     .signup {
