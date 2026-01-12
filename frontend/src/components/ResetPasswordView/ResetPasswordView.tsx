@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import "./ResetPasswordView.css";
 
 export function ResetPasswordView({
-                                      _token: _token,
-                                      onComplete,
-                                  }: {
+    token,
+    onComplete,
+}: {
     token: string;
     onComplete: (email?: string) => void;
 }) {
@@ -61,6 +61,8 @@ export function ResetPasswordView({
             animate={{ opacity: 1, y: 0 }}
             onSubmit={submit}
         >
+            <input type="hidden" name="reset-token" value={token} readOnly />
+
             <h2>Reset Password</h2>
             <p className="subtitle">Set a new secure password for your account</p>
             <div className="input-group">
