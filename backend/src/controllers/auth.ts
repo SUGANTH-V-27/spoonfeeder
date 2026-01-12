@@ -43,59 +43,53 @@ const registerSchema = Joi.object({
     })
 });
 
-// New signup-with-OTP validation schemas
-const signupInitSchema = Joi.object({
+const loginSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required'
+  }),
+  password: Joi.string().required().messages({
+    'any.required': 'Password is required'
+  })
+});
+
+const forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Please provide a valid email address',
     'any.required': 'Email is required'
   })
 });
 
-const signupVerifySchema = Joi.object({
-  email: Joi.string().email().required(),
-  otp: Joi.string().length(6).pattern(/^\d{6}$/).required().messages({
-    'string.length': 'OTP must be 6 digits',
-    'string.pattern.base': 'OTP must be numeric'
-  })
-});
-
-const signupCompleteSchema = Joi.object({
-  email: Joi.string().email().required(),
-  signupToken: Joi.string().required(),
+// Stateless signup-with-OTP validation schemas
+const signupInitSchema = Joi.object({
+  email: Joi.string()
+    .email()
+    .pattern(/@gmail\.com$/i)
+    .required()
+    .messages({
+      'string.email': 'Please provide a valid Email address',
+      'string.pattern.base': 'Only Email addresses are allowed for signup',
+      'any.required': 'Email is required'
+    }),
   password: Joi.string()
     .min(8)
     .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
-    .required()
+    .required(),
+  confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
+    'any.only': 'Passwords must match'
+  })
 });
 
-const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().required()
-});
-
-const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().required()
+const signupVerifySchema = Joi.object({
+  otp: Joi.string().length(6).pattern(/^\d{6}$/).required().messages({
+    'string.length': 'OTP must be 6 digits',
+    'string.pattern.base': 'OTP must be numeric'
+  }),
+  challengeToken: Joi.string().required()
 });
 
 // OTP helpers for signup
 const OTP_EXPIRY_MINUTES = 10;
-const OTP_MAX_ATTEMPTS = 5;
-let signupOtpTableReady = false;
-
-const ensureSignupOtpTable = async () => {
-  if (signupOtpTableReady) return;
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS signup_otps (
-      email TEXT PRIMARY KEY,
-      otp_hash TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      attempts INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-  signupOtpTableReady = true;
-};
-
 const generateOtp = () => (Math.floor(100000 + Math.random() * 900000)).toString();
 
 const createSignupTransporter = () => nodemailer.createTransport({
@@ -114,27 +108,30 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
     const { error, value } = signupInitSchema.validate(req.body, { stripUnknown: true });
     if (error) return res.status(400).json({ error: error.details[0].message });
 
-    const { email } = value;
+    const { email, password } = value;
     userEmail = email;
 
-    // Block if user already exists
     const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    await ensureSignupOtpTable();
+    const jwtsecret = process.env.JWT_SECRET;
+    if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
     const otp = generateOtp();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      `INSERT INTO signup_otps (email, otp_hash, expires_at, attempts)
-       VALUES ($1, $2, $3, 0)
-       ON CONFLICT (email)
-       DO UPDATE SET otp_hash = EXCLUDED.otp_hash, expires_at = EXCLUDED.expires_at, attempts = 0, created_at = NOW()`,
-      [email, otpHash, expiresAt]
+    const challengeToken = jwt.sign(
+      {
+        email,
+        passwordHash,
+        otpHash,
+        purpose: "signup-init"
+      },
+      jwtsecret,
+      { expiresIn: `${OTP_EXPIRY_MINUTES}m` }
     );
 
     const transporter = createSignupTransporter();
@@ -146,7 +143,7 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
       html: `<p>Hello,</p><p>Your Spoonfeeder verification code is <b>${otp}</b>.</p><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p><p>If you didn't request this, you can ignore this email.</p>`
     });
 
-    return res.status(200).json({ message: "OTP sent" });
+    return res.status(200).json({ message: "OTP sent", challengeToken, expiresInMinutes: OTP_EXPIRY_MINUTES });
   } catch (err) {
     logger.error("Signup OTP send error", { error: err, email: userEmail });
     return res.status(500).json({ error: "Internal server error" });
@@ -159,67 +156,26 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
     const { error, value } = signupVerifySchema.validate(req.body, { stripUnknown: true });
     if (error) return res.status(400).json({ error: error.details[0].message });
 
-    const { email, otp } = value;
-    userEmail = email;
-    await ensureSignupOtpTable();
-
-    const rowRes = await pool.query("SELECT otp_hash, expires_at, attempts FROM signup_otps WHERE email = $1", [email]);
-    if (rowRes.rows.length === 0) {
-      return res.status(400).json({ error: "OTP not found. Please request a new code." });
-    }
-
-    const { otp_hash, expires_at, attempts } = rowRes.rows[0];
-
-    if (attempts >= OTP_MAX_ATTEMPTS) {
-      return res.status(429).json({ error: "Too many attempts. Please request a new code." });
-    }
-
-    if (new Date(expires_at) < new Date()) {
-      await pool.query("DELETE FROM signup_otps WHERE email = $1", [email]);
-      return res.status(400).json({ error: "OTP expired. Please request a new code." });
-    }
-
-    const matches = await bcrypt.compare(otp, otp_hash);
-    if (!matches) {
-      await pool.query("UPDATE signup_otps SET attempts = attempts + 1 WHERE email = $1", [email]);
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
+    const { otp, challengeToken } = value;
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
-    // Issue a short-lived signup token to be used for completing registration
-    const signupToken = jwt.sign({ email, purpose: "signup" }, jwtsecret, { expiresIn: "15m" });
-
-    // Clean up the OTP entry to prevent reuse
-    await pool.query("DELETE FROM signup_otps WHERE email = $1", [email]);
-
-    return res.status(200).json({ message: "OTP verified", signupToken });
-  } catch (err) {
-    logger.error("Signup OTP verify error", { error: err, email: userEmail });
-    return res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-export const completeSignup = async (req: Request, res: Response) => {
-  let userEmail = '';
-  try {
-    const { error, value } = signupCompleteSchema.validate(req.body, { stripUnknown: true });
-    if (error) return res.status(400).json({ error: error.details[0].message });
-
-    const { email, password, signupToken } = value;
-    userEmail = email;
-
-    const jwtsecret = process.env.JWT_SECRET;
-    if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
-
+    let payload: any;
     try {
-      const payload = jwt.verify(signupToken, jwtsecret) as any;
-      if (payload.purpose !== "signup" || payload.email !== email) {
-        return res.status(400).json({ error: "Invalid signup token" });
-      }
+      payload = jwt.verify(challengeToken, jwtsecret);
     } catch (err) {
       return res.status(400).json({ error: "Invalid or expired signup token" });
+    }
+
+    const { email, otpHash, passwordHash, purpose } = payload;
+    userEmail = email;
+    if (purpose !== "signup-init" || !email || !otpHash || !passwordHash) {
+      return res.status(400).json({ error: "Invalid signup token" });
+    }
+
+    const otpMatches = await bcrypt.compare(otp, otpHash);
+    if (!otpMatches) {
+      return res.status(400).json({ error: "Invalid OTP" });
     }
 
     const existingUser = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
@@ -227,7 +183,6 @@ export const completeSignup = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.query(
       "INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id,email",
       [email, passwordHash]
@@ -237,7 +192,7 @@ export const completeSignup = async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret, { expiresIn: "12h" });
     return res.status(201).json({ message: "User registered", user: { id: newUser.id, email: newUser.email }, token });
   } catch (err) {
-    logger.error("Complete signup error", { error: err, email: userEmail });
+    logger.error("Signup OTP verify error", { error: err, email: userEmail });
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -428,4 +383,3 @@ export const resetPassword = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
