@@ -431,16 +431,17 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                 newPassword: formData.password,
                 confirmPassword: formData.confirmPassword,
             });
-            setForgotSuccess("Password updated. You can now sign in.");
-            setAuthMode("login");
+            setForgotSuccess("Password updated. Redirecting...");
             setResetStep(1);
             setResetChallenge(null);
             setResetOtp("");
             setOtpVerified(false);
+            setAuthMode("login");
+            onNavigateToCollegeDepartment();
         } catch (err: any) {
             setError(err?.response?.data?.error || err?.message || "Invalid OTP or password. Please try again.");
         }
-    }, [otpVerified, resetChallenge, resetOtp, formData.password, formData.confirmPassword, verifyPasswordReset]);
+    }, [otpVerified, resetChallenge, resetOtp, formData.password, formData.confirmPassword, verifyPasswordReset, onNavigateToCollegeDepartment]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setEnter(true), 100);

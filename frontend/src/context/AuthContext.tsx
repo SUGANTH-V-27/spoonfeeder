@@ -222,7 +222,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAuthenticating(true);
     try {
       const response: AuthResponse = await passwordResetVerify(data);
-      // Do not auto-login or persist token on password reset; allow user to proceed to set a new password and re-auth manually
+      // Auto-authenticate after successful password reset
+      setToken(response.token);
+      setUser(response.user);
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.removeItem('hierarchy');
+      localStorage.removeItem('contentMode');
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (error) {
+        console.error('Error clearing caches on password reset:', error);
+      }
+
       return response;
     } finally {
       setIsAuthenticating(false);
