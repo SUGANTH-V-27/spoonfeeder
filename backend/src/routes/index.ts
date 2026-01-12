@@ -8,7 +8,7 @@ import { getsemesters, addSemester, deleteSemester } from "../controllers/semest
 import { getCourse, addCourse, deleteCourse } from "../controllers/course";
 import { getTopics, addTopic, deleteTopic } from "../controllers/topics";
 import { getSubtopics, addSubtopic, deleteSubtopic, updateSubtopic } from "../controllers/subtopics";
-import { register, login, forgotPassword, resetPassword, sendSignupOtp, verifySignupOtp } from "../controllers/auth";
+import { register, login, sendSignupOtp, verifySignupOtp, sendPasswordResetOtp, verifyPasswordResetOtp } from "../controllers/auth";
 import { getSubtopicContent, addSubtopicContent, deleteSubtopicContent } from "../controllers/subtopicContent";
 import {noCache} from "../middleware/noCache";
 
@@ -18,8 +18,8 @@ router.get("/health",noCache, getHealth);
 
 router.post("/auth/register", register);
 router.post("/auth/login", login);
-router.post("/auth/forgot-password", forgotPassword);
-router.post("/auth/reset-password/:token", resetPassword);
+router.post("/auth/password/otp-init", sendPasswordResetOtp);
+router.post("/auth/password/otp-verify", verifyPasswordResetOtp);
 router.post("/auth/signup/init", sendSignupOtp);
 router.post("/auth/signup/verify", verifySignupOtp);
 router.get("/colleges", noCache, requireAuth, getColleges);
