@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { login, register, signupInit, signupVerify, signupComplete } from '../api/auth';
-import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload, SignupCompletePayload } from '../api/auth';
+import { login, register, signupInit, signupVerify } from '../api/auth';
+import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload } from '../api/auth';
 
 // Admin emails configuration
 const ADMIN_EMAILS = [
@@ -29,13 +29,9 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   isAuthenticating: boolean;
-  pendingSignupEmail: string | null;
-  signupToken: string | null;
-  login: (data: LoginData) => Promise<boolean>;
-  register: (data: RegisterData) => Promise<boolean>;
-  startSignup: (data: SignupInitPayload) => Promise<void>;
-  verifySignup: (data: SignupVerifyPayload) => Promise<string>;
-  completeSignup: (data: SignupCompletePayload) => Promise<boolean>;
+  challengeToken: string | null;
+  startSignup: (data: SignupInitPayload) => Promise<{ challengeToken: string }>;
+  verifySignup: (data: SignupVerifyPayload) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -58,8 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [pendingSignupEmail, setPendingSignupEmail] = useState<string | null>(null);
-  const [signupToken, setSignupToken] = useState<string | null>(null);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
 
   // Check if current user is admin
   const isAdmin = user ? ADMIN_EMAILS.includes(user.email) : false;
@@ -167,35 +162,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const startSignup = async (data: SignupInitPayload): Promise<void> => {
+  const startSignup = async (data: SignupInitPayload): Promise<{ challengeToken: string }> => {
     setIsAuthenticating(true);
     try {
-      await signupInit(data);
-      setPendingSignupEmail(data.email);
+      const res = await signupInit(data);
+      setChallengeToken(res.challengeToken);
+      return { challengeToken: res.challengeToken };
     } finally {
       setIsAuthenticating(false);
     }
   };
 
-  const verifySignup = async (data: SignupVerifyPayload): Promise<string> => {
+  const verifySignup = async (data: SignupVerifyPayload): Promise<boolean> => {
     setIsAuthenticating(true);
     try {
-      const res = await signupVerify(data);
-      setSignupToken(res.signupToken);
-      return res.signupToken;
-    } finally {
-      setIsAuthenticating(false);
-    }
-  };
-
-  const completeSignupFlow = async (data: SignupCompletePayload): Promise<boolean> => {
-    setIsAuthenticating(true);
-    try {
-      const response: AuthResponse = await signupComplete(data);
+      const response: AuthResponse = await signupVerify(data);
       setToken(response.token);
       setUser(response.user);
 
-      // Clear caches for new user
       localStorage.removeItem('hierarchy');
       localStorage.removeItem('contentMode');
       try {
@@ -213,8 +197,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      setPendingSignupEmail(null);
-      setSignupToken(null);
+      setChallengeToken(null);
       return true;
     } finally {
       setIsAuthenticating(false);
@@ -251,13 +234,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     isLoading,
     isAuthenticating,
-    pendingSignupEmail,
-    signupToken,
+    challengeToken,
     login: handleLogin,
     register: handleRegister,
     startSignup,
     verifySignup,
-    completeSignup: completeSignupFlow,
     logout: handleLogout,
   };
 
