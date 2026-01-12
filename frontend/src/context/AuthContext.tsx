@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { login, register, signupInit, signupVerify } from '../api/auth';
-import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload } from '../api/auth';
+import { login, register, signupInit, signupVerify, passwordResetInit, passwordResetVerify } from '../api/auth';
+import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload, PasswordResetInitPayload, PasswordResetVerifyPayload } from '../api/auth';
 
 // Admin emails configuration
 const ADMIN_EMAILS = [
@@ -30,8 +30,12 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticating: boolean;
   challengeToken: string | null;
+  login: (data: LoginData) => Promise<boolean>;
+  register: (data: RegisterData) => Promise<boolean>;
   startSignup: (data: SignupInitPayload) => Promise<{ challengeToken: string }>;
   verifySignup: (data: SignupVerifyPayload) => Promise<boolean>;
+  startPasswordReset: (data: PasswordResetInitPayload) => Promise<{ challengeToken: string }>;
+  verifyPasswordReset: (data: PasswordResetVerifyPayload) => Promise<AuthResponse>;
   logout: () => void;
 }
 
@@ -173,6 +177,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const startPasswordReset = async (data: PasswordResetInitPayload): Promise<{ challengeToken: string }> => {
+    setIsAuthenticating(true);
+    try {
+      const res = await passwordResetInit(data);
+      return { challengeToken: res.challengeToken };
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
   const verifySignup = async (data: SignupVerifyPayload): Promise<boolean> => {
     setIsAuthenticating(true);
     try {
@@ -199,6 +213,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(response.user));
       setChallengeToken(null);
       return true;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const verifyPasswordReset = async (data: PasswordResetVerifyPayload): Promise<AuthResponse> => {
+    setIsAuthenticating(true);
+    try {
+      const response: AuthResponse = await passwordResetVerify(data);
+      // Do not auto-login or persist token on password reset; allow user to proceed to set a new password and re-auth manually
+      return response;
     } finally {
       setIsAuthenticating(false);
     }
@@ -239,6 +264,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register: handleRegister,
     startSignup,
     verifySignup,
+    startPasswordReset,
+    verifyPasswordReset,
     logout: handleLogout,
   };
 

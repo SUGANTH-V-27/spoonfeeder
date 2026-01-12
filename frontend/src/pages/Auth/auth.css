@@ -1327,66 +1327,63 @@ input[type="password"]::-webkit-clear-button {
     width: 100%;
     display: flex;
     justify-content: center;
-    margin: 12px 0 6px;
+    margin: 10px 0 4px 0;
 }
 
 .otp-container {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
     width: 100%;
-    gap: 10px;
 }
 
 .otp-input {
     flex: 1;
     min-width: 52px;
-    background: #1a1a1c;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    border-radius: 8px;
-    height: 54px;
-    font-size: 22px;
-    font-weight: 600;
     text-align: center;
-    line-height: 54px;
-    letter-spacing: 0;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-    caret-color: var(--primary-accent);
-    -moz-appearance: textfield;
-    -webkit-appearance: none;
-    appearance: none;
-    padding: 0;
-    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 10px 0;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: #2a2a2d;
+    color: #f3f4f6;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .otp-input:focus {
-    outline: none;
-    box-shadow: none;
-    background: #222226;
-}
-
-.otp-input.filled {
-    background: #1e1e22;
-}
-
-.otp-input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    border-color: #4b5563;
+    box-shadow: 0 0 0 1px #4b5563;
 }
 
 .otp-input::placeholder {
-    color: transparent;
+    color: #9ca3af;
 }
 
-@media (max-width: 768px) {
-    .otp-container {
-        gap: 8px;
+.otp-input.filled {
+    color: #f9fafb;
+}
+
+/* Ensure OTP grid stretches with parent card width and matches button width */
+.login-card .otp-container,
+.login-card .button-container {
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .right-panel {
+        width: 520px;
     }
+    .login-card .otp-container {
+        gap: 10px;
+    }
+}
+
+@media (max-width: 640px) {
     .otp-input {
-        height: 50px;
-        font-size: 20px;
-        line-height: 50px;
-        min-width: 44px;
+        font-size: 16px;
+        padding: 10px 0;
     }
 }
 

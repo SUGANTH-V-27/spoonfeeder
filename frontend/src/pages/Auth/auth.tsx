@@ -1,9 +1,8 @@
-import {useCallback, useEffect, useState, useRef, useMemo} from "react";
+import {useCallback, useEffect, useState, useRef} from "react";
 import {motion, AnimatePresence} from "framer-motion";
 import {useAuth} from "../../context/AuthContext";
 import "./auth.css";
-import {ResetPasswordView} from "../../components/ResetPasswordView/ResetPasswordView.tsx";
-import {forgotPassword} from "../../api/auth.ts";
+// OTP reset handled via AuthContext methods
 // Custom SVG Icons
 const InstagramIcon = () => {
     const [hover, setHover] = useState(false);
@@ -110,7 +109,7 @@ interface OtpInputProps {
 }
 
 function OtpInput({value, onChange, disabled, autoFocus}: OtpInputProps) {
-    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+    const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
     const [digits, setDigits] = useState<string[]>(() =>
         Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? "")
     );
@@ -201,7 +200,7 @@ function OtpInput({value, onChange, disabled, autoFocus}: OtpInputProps) {
                 {Array.from({length: OTP_LENGTH}).map((_, idx) => (
                     <input
                         key={idx}
-                        ref={el => inputsRef.current[idx] = el}
+                        ref={(el) => { inputsRef.current[idx] = el; }}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
@@ -223,12 +222,11 @@ function OtpInput({value, onChange, disabled, autoFocus}: OtpInputProps) {
 }
 
 function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode = "login"}: LoginProps) {
-    const {login, isAuthenticating, startSignup, verifySignup, challengeToken} = useAuth();
+    const {login, isAuthenticating, startSignup, verifySignup, challengeToken, startPasswordReset, verifyPasswordReset} = useAuth();
     const [eye, setEye] = useState({x: 0, y: 0});
     const [mode, setMode] = useState<Mode>("normal");
     const [peekDoll, setPeekDoll] = useState<string | null>(null);
     const [error, setError] = useState<string>("");
-    const [passwordMatch, setPasswordMatch] = useState<"match" | "mismatch" | "hidden">("hidden");
     const [formData, setFormData] = useState({
         email: "",
         password: "",
@@ -240,7 +238,11 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [isResending, setIsResending] = useState(false);
     const [otpValue, setOtpValue] = useState("");
 
-// ...existing code...
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+    const [resetStep, setResetStep] = useState<1 | 2 | 3>(1);
+    const [resetChallenge, setResetChallenge] = useState<string | null>(null);
+    const [resetOtp, setResetOtp] = useState("");
 
     useEffect(() => {
         if (resendCooldown <= 0) return;
@@ -363,50 +365,98 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
     const passwordInputRef = useRef<HTMLInputElement>(null);
 
-    const [forgotLoading, setForgotLoading] = useState(false);
-    const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
-
-    const sendResetEmail = useCallback(async (e?: React.FormEvent) => {
+    const sendResetOtp = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
         if (!isValidEmail(formData.email)) {
-            setError("Please enter a valid email");
+            setError("Please enter a valid Email");
             return;
         }
-
         try {
             setForgotLoading(true);
-            await forgotPassword(formData.email);
-            setForgotSuccess("If that email exists, a reset link was sent. Check your inbox.");
+            const res = await startPasswordReset({ email: formData.email });
+            setResetChallenge(res.challengeToken);
+            setResetStep(2);
+            setForgotSuccess("OTP sent to your email successfully.");
         } catch (err: any) {
             setError(err?.response?.data?.error || err?.message || "Server error. Please try again.");
         } finally {
             setForgotLoading(false);
         }
-    }, [formData.email]);
+    }, [formData.email, startPasswordReset]);
 
-    const leftPanelVariants = {
-        login: {
-            x: 0,
-            opacity: 1
-        },
-        register: {
-            x: 0,
-            opacity: 1
-        }
-    };
+    const [otpVerified, setOtpVerified] = useState(false);
 
-    const rightPanelVariants = {
-        login: {
-            x: 0,
-            opacity: 1
-        },
-        register: {
-            x: 0,
-            opacity: 1
+    const handleVerifyOtpOnly = useCallback(async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        setError("");
+        setForgotSuccess(null);
+        if (!resetChallenge) {
+            setError("Missing reset token. Please request OTP again.");
+            setResetStep(1);
+            return;
         }
-    };
+        if (resetOtp.replace(/\D/g, "").length !== OTP_LENGTH) {
+            setError("Enter the 6-digit OTP");
+            return;
+        }
+        // Verify OTP server-side without updating password yet
+        try {
+            await verifyPasswordReset({
+                otp: resetOtp,
+                challengeToken: resetChallenge,
+                newPassword: "placeholderPwd1!", // backend requires fields; we don't use it here
+                confirmPassword: "placeholderPwd1!",
+                verifyOnly: true,
+            } as any);
+            setOtpVerified(true);
+            setResetStep(3);
+            setForgotSuccess("OTP verified. Set your new password.");
+        } catch (err: any) {
+            setError(err?.response?.data?.error || err?.message || "Invalid OTP. Please try again.");
+        }
+    }, [resetChallenge, resetOtp, verifyPasswordReset]);
+
+    const handleVerifyResetOtp = useCallback(async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        setError("");
+        if (!otpVerified) {
+            setError("Verify the OTP first");
+            setResetStep(2);
+            return;
+        }
+        if (!resetChallenge) {
+            setError("Missing reset token. Please request OTP again.");
+            setResetStep(1);
+            return;
+        }
+        if (!formData.password || !formData.confirmPassword) {
+            setError("Enter and confirm your new password");
+            return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+            setError("Passwords do not match");
+            return;
+        }
+
+        try {
+            await verifyPasswordReset({
+                otp: resetOtp,
+                challengeToken: resetChallenge,
+                newPassword: formData.password,
+                confirmPassword: formData.confirmPassword,
+            });
+            setForgotSuccess("Password updated. You can now sign in.");
+            setAuthMode("login");
+            setResetStep(1);
+            setResetChallenge(null);
+            setResetOtp("");
+            setOtpVerified(false);
+        } catch (err: any) {
+            setError(err?.response?.data?.error || err?.message || "Invalid OTP or password. Please try again.");
+        }
+    }, [otpVerified, resetChallenge, resetOtp, formData.password, formData.confirmPassword, verifyPasswordReset]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setEnter(true), 100);
@@ -459,32 +509,19 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         });
     }, []);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get("token");
-    const onResetComplete = useCallback((email?: string) => {
-        setAuthMode("login");
-        if (email) {
-            setFormData(prev => ({ ...prev, email }));
-        }
-        setTimeout(() => setForgotSuccess("Password updated. You can now sign in."), 100);
-    }, []);
+    // Legacy reset-token route removed in OTP-only flow
 
+    const leftPanelVariants = {
+         login: { x: 0, opacity: 1 },
+         register: { x: 0, opacity: 1 },
+         forgot: { x: 0, opacity: 1 }
+     } as const;
 
-    if (window.location.pathname === "/reset-password" && resetToken) {
-        return (
-            <div className="login-page single-view">
-                <ResetPasswordView token={resetToken} onComplete={onResetComplete}/>
-            </div>
-        );
-    }
-    const passwordsMatch = useMemo(
-        () => signupStep === 1 && formData.password.length > 0 && formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword,
-        [signupStep, formData.password, formData.confirmPassword]
-    );
-    const passwordsMismatch = useMemo(
-        () => signupStep === 1 && formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword,
-        [signupStep, formData.password, formData.confirmPassword]
-    );
+    const rightPanelVariants = {
+         login: { x: 0, opacity: 1 },
+         register: { x: 0, opacity: 1 },
+         forgot: { x: 0, opacity: 1 }
+     } as const;
 
 
     return (
@@ -703,43 +740,92 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             initial={{x: -50, opacity: 0}}
                             animate={{x: 0, opacity: 1}}
                             exit={{x: 50, opacity: 0}}
-                            onSubmit={sendResetEmail}
+                            onSubmit={resetStep === 1 ? sendResetOtp : resetStep === 2 ? handleVerifyOtpOnly : handleVerifyResetOtp}
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: "transform, opacity"}}
                         >
                             <h2 className={`email-enter ${fade ? "fade-in" : ""}`}
                                 style={{animationDelay: "0.3s", textAlign: "center"}}>
-                                Enter your email
+                                {resetStep === 1 ? "Enter your email" : resetStep === 2 ? "Enter OTP" : "Set a new password"}
                             </h2>
                             <p className={`subtitle ${fade ? "fade-in" : ""}`}
                                style={{animationDelay: "0.4s", textAlign: "center", marginBottom:28}}>
-                                We'll send a secure reset link to your inbox
+                                {resetStep === 1 ? "We will send a 6-digit OTP to your email" : resetStep === 2 ? "Verify the OTP we sent" : "Set a strong new password"}
                             </p>
 
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="Email"
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                onFocus={() => setMode("email")}
-                                onBlur={() => setMode("normal")}
-                                autoComplete="email"
-                                className={fade ? "fade-in" : ""}
-                                style={{animationDelay: "0.5s"}}
-                            />
+                            {resetStep === 1 ? (
+                                 <input
+                                     type="email"
+                                     name="email"
+                                     placeholder="Email"
+                                     value={formData.email}
+                                     onChange={handleInputChange}
+                                     onFocus={() => setMode("email")}
+                                     onBlur={() => setMode("normal")}
+                                     autoComplete="email"
+                                     className={fade ? "fade-in" : ""}
+                                     style={{animationDelay: "0.5s"}}
+                                 />
+                            ) : resetStep === 2 ? (
+                                <OtpInput
+                                    value={resetOtp}
+                                    onChange={setResetOtp}
+                                    disabled={isAuthenticating}
+                                    autoFocus
+                                />
+                            ) : (
+                                  <>
+                                     <div className="password-wrapper fade-in" style={{animationDelay: "0.6s"}}>
+                                         <input
+                                             type={showPwd ? "text" : "password"}
+                                             name="password"
+                                             placeholder="New password"
+                                             value={formData.password}
+                                             onChange={handleInputChange}
+                                             onFocus={() => { setMode("password"); setPeekDoll(null); }}
+                                             onBlur={() => setMode("normal")}
+                                             required
+                                            disabled={!otpVerified}
+                                         />
+                                         <span
+                                             className="show-pwd"
+                                             onClick={(e) => { e.preventDefault(); toggleShowPwd(); }}
+                                             onMouseDown={(e) => e.preventDefault()}
+                                         >
+                                             {showPwd ? "Hide" : "Show"}
+                                         </span>
+                                     </div>
+                                     <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
+                                         <input
+                                             style={{marginBottom: 0}}
+                                             type="password"
+                                             name="confirmPassword"
+                                             placeholder="Confirm new password"
+                                             value={formData.confirmPassword}
+                                             onChange={handleInputChange}
+                                             onFocus={() => { setMode("password"); setPeekDoll(null); }}
+                                             onBlur={() => setMode("normal")}
+                                             required
+                                            disabled={!otpVerified}
+                                         />
+                                        <span className={`password-match-icon ${formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "match" : "mismatch") : ""}`}>
+                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "✔" : "✖") : ""}
+                                        </span>
+                                     </div>
+                                  </>
+                              )}
 
                             <div className={`button-container ${fade ? "fade-in" : ""}`}
                                  style={{animationDelay: "0.6s"}}>
                                 <button
                                     type="submit"
-                                    disabled={forgotLoading}
+                                    disabled={forgotLoading || isAuthenticating || (resetStep === 2 && resetOtp.replace(/\D/g, "").length !== OTP_LENGTH)}
                                 >
-                                    {forgotLoading ? (
-                                        <><span className="auth-spinner"></span>Sending...</>
-                                    ) : (
-                                        "Send Reset Email"
-                                    )}
+                                     {forgotLoading || isAuthenticating ? (
+                                         <><span className="auth-spinner"></span>{resetStep === 1 ? "Sending OTP..." : resetStep === 2 ? "Verifying..." : "Updating..."}</>
+                                     ) : (
+                                         resetStep === 1 ? "Send OTP" : resetStep === 2 ? "Verify OTP" : "Update Password"
+                                     )}
                                 </button>
                             </div>
 
@@ -751,7 +837,9 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 Remembered your password? <span onClick={() => {
                                 setAuthMode("login");
                                 setError(""); // Clear error when switching modes
-                            }}>Sign in</span>
+                                setResetStep(1);
+                                setResetChallenge(null);
+                             }}>Sign in</span>
                             </div>
 
                             <div className={`contact-section ${fade ? "fade-in" : ""}`}
@@ -800,57 +888,57 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             )}
 
                             {signupStep === 1 && (
-                                <>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        placeholder="Email address"
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                        onFocus={() => setMode("email")}
-                                        onBlur={() => setMode("normal")}
-                                        className={fade ? "fade-in" : ""}
-                                        style={{animationDelay: "0.5s"}}
-                                        autoComplete="email"
-                                        required
-                                    />
-                                    <div className="password-wrapper fade-in" style={{animationDelay: "0.6s"}}>
-                                        <input
-                                            type={showPwd ? "text" : "password"}
-                                            name="password"
-                                            placeholder="Password"
-                                            value={formData.password}
-                                            onChange={handleInputChange}
-                                            onFocus={() => { setMode("password"); setPeekDoll(null); }}
-                                            onBlur={() => setMode("normal")}
-                                            required
-                                        />
-                                        <span
-                                            className="show-pwd"
-                                            onClick={(e) => { e.preventDefault(); toggleShowPwd(); }}
-                                            onMouseDown={(e) => e.preventDefault()}
-                                        >
-                                            {showPwd ? "Hide" : "Show"}
+                                 <>
+                                     <input
+                                         type="email"
+                                         name="email"
+                                         placeholder="Email address"
+                                         value={formData.email}
+                                         onChange={handleInputChange}
+                                         onFocus={() => setMode("email")}
+                                         onBlur={() => setMode("normal")}
+                                         className={fade ? "fade-in" : ""}
+                                         style={{animationDelay: "0.5s"}}
+                                         autoComplete="email"
+                                         required
+                                     />
+                                     <div className="password-wrapper fade-in" style={{animationDelay: "0.6s"}}>
+                                         <input
+                                             type={showPwd ? "text" : "password"}
+                                             name="password"
+                                             placeholder="Password"
+                                             value={formData.password}
+                                             onChange={handleInputChange}
+                                             onFocus={() => { setMode("password"); setPeekDoll(null); }}
+                                             onBlur={() => setMode("normal")}
+                                             required
+                                         />
+                                         <span
+                                             className="show-pwd"
+                                             onClick={(e) => { e.preventDefault(); toggleShowPwd(); }}
+                                             onMouseDown={(e) => e.preventDefault()}
+                                         >
+                                             {showPwd ? "Hide" : "Show"}
+                                         </span>
+                                     </div>
+                                     <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
+                                         <input
+                                             style={{marginBottom: 0}}
+                                             type="password"
+                                             name="confirmPassword"
+                                             placeholder="Confirm Password"
+                                             value={formData.confirmPassword}
+                                             onChange={handleInputChange}
+                                             onFocus={() => { setMode("password"); setPeekDoll(null); }}
+                                             onBlur={() => setMode("normal")}
+                                             required
+                                         />
+                                        <span className={`password-match-icon ${formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "match" : "mismatch") : ""}`}>
+                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "✔" : "✖") : ""}
                                         </span>
-                                    </div>
-                                    <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
-                                        <input
-                                            style={{marginBottom: 0}}
-                                            type="password"
-                                            name="confirmPassword"
-                                            placeholder="Confirm Password"
-                                            value={formData.confirmPassword}
-                                            onChange={handleInputChange}
-                                            onFocus={() => { setMode("password"); setPeekDoll(null); }}
-                                            onBlur={() => setMode("normal")}
-                                            required
-                                        />
-                                        <span className={`password-match-icon ${passwordsMatch ? "match" : passwordsMismatch ? "mismatch" : ""}`}>
-                                            {passwordsMatch ? "✔" : passwordsMismatch ? "✖" : ""}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
+                                     </div>
+                                 </>
+                             )}
 
                             {signupStep === 2 && (
                                 <>

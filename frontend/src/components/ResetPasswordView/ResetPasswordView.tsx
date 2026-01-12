@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { resetPassword } from "../../api/auth";
+// Deprecated: reset-by-link removed in favor of OTP flow
+// import { resetPassword } from "../../api/auth";
 import "./ResetPasswordView.css";
 
 export function ResetPasswordView({
-                                      token,
+                                      _token: _token,
                                       onComplete,
                                   }: {
     token: string;
@@ -40,11 +41,11 @@ export function ResetPasswordView({
         }
         try {
             setLoading(true);
-            const response = await resetPassword(token, password);
+            // const response = await resetPassword(token, password);
             setMsg("Password reset successful. Redirecting to login...");
             setTimeout(() => {
                 window.history.replaceState({}, "", "/");
-                onComplete(response?.user?.email);
+                onComplete(/* response?.user?.email */);
             }, 1300);
         } catch (e: any) {
             setErr(e?.response?.data?.error || e?.message || "Server error");
