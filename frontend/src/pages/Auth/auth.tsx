@@ -369,6 +369,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
+        setOtpVerified(false);
         if (!isValidEmail(formData.email)) {
             setError("Please enter a valid Email");
             return;
@@ -388,35 +389,18 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
 
     const [otpVerified, setOtpVerified] = useState(false);
 
-    const handleVerifyOtpOnly = useCallback(async (e?: React.FormEvent) => {
+    const handleOtpStepContinue = useCallback((e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
-        if (!resetChallenge) {
-            setError("Missing reset token. Please request OTP again.");
-            setResetStep(1);
-            return;
-        }
         if (resetOtp.replace(/\D/g, "").length !== OTP_LENGTH) {
             setError("Enter the 6-digit OTP");
             return;
         }
-        // Verify OTP server-side without updating password yet
-        try {
-            await verifyPasswordReset({
-                otp: resetOtp,
-                challengeToken: resetChallenge,
-                newPassword: "placeholderPwd1!", // backend requires fields; we don't use it here
-                confirmPassword: "placeholderPwd1!",
-                verifyOnly: true,
-            } as any);
-            setOtpVerified(true);
-            setResetStep(3);
-            setForgotSuccess("OTP verified. Set your new password.");
-        } catch (err: any) {
-            setError(err?.response?.data?.error || err?.message || "Invalid OTP. Please try again.");
-        }
-    }, [resetChallenge, resetOtp, verifyPasswordReset]);
+        setOtpVerified(true);
+        setResetStep(3);
+        setForgotSuccess("OTP verified. Set your new password.");
+    }, [resetOtp]);
 
     const handleVerifyResetOtp = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -740,7 +724,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             initial={{x: -50, opacity: 0}}
                             animate={{x: 0, opacity: 1}}
                             exit={{x: 50, opacity: 0}}
-                            onSubmit={resetStep === 1 ? sendResetOtp : resetStep === 2 ? handleVerifyOtpOnly : handleVerifyResetOtp}
+                            onSubmit={resetStep === 1 ? sendResetOtp : resetStep === 2 ? handleOtpStepContinue : handleVerifyResetOtp}
                             transition={{duration: 0.4, ease: [0.25, 0.1, 0.25, 1]}}
                             style={{willChange: "transform, opacity"}}
                         >
@@ -839,6 +823,8 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 setError(""); // Clear error when switching modes
                                 setResetStep(1);
                                 setResetChallenge(null);
+                                setResetOtp("");
+                                setOtpVerified(false);
                              }}>Sign in</span>
                             </div>
 
