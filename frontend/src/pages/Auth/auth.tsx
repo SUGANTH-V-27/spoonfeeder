@@ -884,13 +884,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 </button>
                             </div>
 
-                            {signupStep > 1 && (
-                                <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
-                                    <span onClick={resetSignupFlow}>Start over</span>
-                                </div>
-                            )}
-
-                            <div className="signup fade-in" style={{animationDelay: "0.95s"}}>
+                            <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
                                 Already have an account? <span onClick={() => { setAuthMode("login"); resetSignupFlow(); }}>Sign in</span>
                             </div>
 
