@@ -23,6 +23,8 @@ export interface SignupInitPayload { email: string; password: string; confirmPas
 export interface SignupVerifyPayload { otp: string; challengeToken: string; }
 export interface PasswordResetInitPayload { email: string; }
 export interface PasswordResetVerifyPayload { otp: string; challengeToken: string; newPassword: string; confirmPassword: string; }
+export interface PasswordResetOtpOnlyPayload { otp: string; challengeToken: string; }
+export interface PasswordResetCompletePayload { verifiedChallengeToken: string; newPassword: string; confirmPassword: string; }
 
 // Login user
 export const login = async (data: LoginData): Promise<AuthResponse> => {
@@ -55,3 +57,16 @@ export const passwordResetVerify = async (data: PasswordResetVerifyPayload): Pro
   const response = await api.post("/auth/password/otp-verify", data);
   return response.data;
 };
+
+// Verify OTP only (without resetting password)
+export const passwordResetVerifyOtpOnly = async (data: PasswordResetOtpOnlyPayload): Promise<{ message: string; verifiedChallengeToken: string; email: string }> => {
+  const response = await api.post("/auth/password/otp-verify-only", data);
+  return response.data;
+};
+
+// Complete password reset after OTP verification
+export const passwordResetComplete = async (data: PasswordResetCompletePayload): Promise<AuthResponse> => {
+  const response = await api.post("/auth/password/complete", data);
+  return response.data;
+};
+

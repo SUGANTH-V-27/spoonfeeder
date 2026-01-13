@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-export type OtpPurpose = "signup" | "password-reset";
+export type OtpPurpose = "signup" | "password-reset" | "password-reset-verified";
 
 interface OtpRecord {
   purpose: OtpPurpose;
