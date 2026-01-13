@@ -230,7 +230,7 @@ function OtpInput({value, onChange, onComplete, disabled, autoFocus}: OtpInputPr
 }
 
 function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode = "login"}: LoginProps) {
-    const {login, isAuthenticating, startSignup, verifySignup, challengeToken, startPasswordReset, verifyPasswordReset} = useAuth();
+    const {login, isAuthenticating, startSignup, verifySignup, challengeToken, startPasswordReset, verifyPasswordResetOtpOnly, completePasswordReset} = useAuth();
     const [eye, setEye] = useState({x: 0, y: 0});
     const [mode, setMode] = useState<Mode>("normal");
     const [peekDoll, setPeekDoll] = useState<string | null>(null);
@@ -250,6 +250,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
     const [resetStep, setResetStep] = useState<1 | 2 | 3>(1);
     const [resetChallenge, setResetChallenge] = useState<string | null>(null);
+    const [verifiedResetChallenge, setVerifiedResetChallenge] = useState<string | null>(null);
     const [resetOtp, setResetOtp] = useState("");
 
     useEffect(() => {
@@ -382,6 +383,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         setError("");
         setForgotSuccess(null);
         setOtpVerified(false);
+        setVerifiedResetChallenge(null);
         if (!isValidEmail(formData.email)) {
             setError("Please enter a valid Email");
             return;
@@ -401,7 +403,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
 
     const [otpVerified, setOtpVerified] = useState(false);
 
-    const handleOtpStepContinue = useCallback((e?: React.FormEvent) => {
+    const handleOtpStepContinue = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
@@ -409,22 +411,32 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
             setError("Enter the OTP");
             return;
         }
-        setOtpVerified(true);
-        setResetStep(3);
-        setForgotSuccess("OTP verified. Set your new password.");
-    }, [resetOtp]);
+        if (!resetChallenge) {
+            setError("Missing reset token. Please request OTP again.");
+            setResetStep(1);
+            return;
+        }
+        try {
+            setForgotLoading(true);
+            const result = await verifyPasswordResetOtpOnly({ otp: resetOtp, challengeToken: resetChallenge });
+            setVerifiedResetChallenge(result.verifiedChallengeToken);
+            setOtpVerified(true);
+            setResetStep(3);
+            setForgotSuccess("OTP verified. Set your new password.");
+        } catch (err: any) {
+            setError(err?.response?.data?.error || err?.message || "Invalid OTP. Please try again.");
+            setOtpVerified(false);
+        } finally {
+            setForgotLoading(false);
+        }
+    }, [resetOtp, resetChallenge, verifyPasswordResetOtpOnly]);
 
     const handleVerifyResetOtp = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
-        if (!otpVerified) {
+        if (!otpVerified || !verifiedResetChallenge) {
             setError("Verify the OTP first");
             setResetStep(2);
-            return;
-        }
-        if (!resetChallenge) {
-            setError("Missing reset token. Please request OTP again.");
-            setResetStep(1);
             return;
         }
         if (!formData.password || !formData.confirmPassword) {
@@ -437,23 +449,23 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         }
 
         try {
-            await verifyPasswordReset({
-                otp: resetOtp,
-                challengeToken: resetChallenge,
+            await completePasswordReset({
+                verifiedChallengeToken: verifiedResetChallenge,
                 newPassword: formData.password,
                 confirmPassword: formData.confirmPassword,
             });
             setForgotSuccess("Password updated. Redirecting...");
             setResetStep(1);
             setResetChallenge(null);
+            setVerifiedResetChallenge(null);
             setResetOtp("");
             setOtpVerified(false);
             setAuthMode("login");
             onNavigateToCollegeDepartment();
         } catch (err: any) {
-            setError(err?.response?.data?.error || err?.message || "Invalid OTP or password. Please try again.");
+            setError(err?.response?.data?.error || err?.message || "Failed to update password. Please try again.");
         }
-    }, [otpVerified, resetChallenge, resetOtp, formData.password, formData.confirmPassword, verifyPasswordReset, onNavigateToCollegeDepartment]);
+    }, [otpVerified, verifiedResetChallenge, formData.password, formData.confirmPassword, completePasswordReset, onNavigateToCollegeDepartment]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setEnter(true), 100);
@@ -520,14 +532,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
          forgot: { x: 0, opacity: 1 }
      } as const;
 
-    const normalizedSignupOtp = (otpValue || formData.confirmPassword || "").replace(/\D/g, "");
     const isSignupOtpVerifying = signupStep === 2 && isAuthenticating && !isResending;
-    const isSignupButtonDisabled = signupStep === 1
-        ? (isAuthenticating || formData.password !== formData.confirmPassword)
-        : (isSignupOtpVerifying || isResending || normalizedSignupOtp.length !== OTP_LENGTH);
-    const signupButtonText = signupStep === 1
-        ? (isAuthenticating ? "Creating Account..." : "Create Account")
-        : (isSignupOtpVerifying ? "Verifying..." : "Verify OTP");
 
     return (
         <div className="login-page">
@@ -780,7 +785,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                             resetVerifyBtnRef.current?.click();
                                         }
                                     }}
-                                    disabled={isAuthenticating}
+                                    disabled={isAuthenticating || forgotLoading}
                                     autoFocus
                                 />
                             ) : (
@@ -825,20 +830,39 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                   </>
                               )}
 
-                            <div className={`button-container ${fade ? "fade-in" : ""}`}
-                                 style={{animationDelay: "0.6s"}}>
-                                <button
-                                    ref={resetVerifyBtnRef}
-                                    type="submit"
-                                    disabled={forgotLoading || isAuthenticating || (resetStep === 2 && resetOtp.replace(/\D/g, "").length !== OTP_LENGTH)}
-                                >
-                                     {forgotLoading || isAuthenticating ? (
-                                         <><span className="auth-spinner"></span>{resetStep === 1 ? "Sending OTP..." : resetStep === 2 ? "Verifying..." : "Updating..."}</>
-                                     ) : (
-                                         resetStep === 1 ? "Verify Email" : resetStep === 2 ? "Verify OTP" : "Update Password"
-                                     )}
-                                </button>
-                            </div>
+                            {/* Hidden button for step 2 auto-trigger */}
+                            <button
+                                ref={resetVerifyBtnRef}
+                                type="submit"
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Show loading spinner during OTP verification (step 2) */}
+                            {resetStep === 2 && (forgotLoading || isAuthenticating) && (
+                                <div className={`button-container ${fade ? "fade-in" : ""}`} style={{animationDelay: "0.6s"}}>
+                                    <button type="button" disabled>
+                                        <span className="auth-spinner"></span>Verifying...
+                                    </button>
+                                </div>
+                            )}
+
+
+                            {/* Show button only for step 1 and step 3 */}
+                            {resetStep !== 2 && (
+                                <div className={`button-container ${fade ? "fade-in" : ""}`}
+                                     style={{animationDelay: "0.6s"}}>
+                                    <button
+                                        type="submit"
+                                        disabled={forgotLoading || isAuthenticating}
+                                    >
+                                         {forgotLoading || isAuthenticating ? (
+                                             <><span className="auth-spinner"></span>{resetStep === 1 ? "Sending OTP..." : "Updating..."}</>
+                                         ) : (
+                                             resetStep === 1 ? "Verify Email" : "Update Password"
+                                         )}
+                                    </button>
+                                </div>
+                            )}
 
 
                             {error && <div className="error-message" style={{marginTop:20}}>{error}</div>}
@@ -850,6 +874,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 setError(""); // Clear error when switching modes
                                 setResetStep(1);
                                 setResetChallenge(null);
+                                setVerifiedResetChallenge(null);
                                 setResetOtp("");
                                 setOtpVerified(false);
                              }}>Sign in</span>
@@ -977,19 +1002,37 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 </>
                             )}
 
-                            <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
-                                <button
-                                    ref={signupSubmitRef}
-                                    type="submit"
-                                    disabled={isSignupButtonDisabled}
-                                >
-                                    {(((isAuthenticating && signupStep === 1) || isSignupOtpVerifying)) ? (
-                                        <><span className="auth-spinner"></span>{signupButtonText}</>
-                                    ) : (
-                                        signupButtonText
-                                    )}
-                                 </button>
-                            </div>
+                            {/* Hidden button for step 2 auto-trigger */}
+                            <button
+                                ref={signupSubmitRef}
+                                type="submit"
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Show loading spinner during OTP verification (step 2) */}
+                            {signupStep === 2 && isSignupOtpVerifying && (
+                                <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
+                                    <button type="button" disabled>
+                                        <span className="auth-spinner"></span>Verifying...
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Show button only for step 1 */}
+                            {signupStep === 1 && (
+                                <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
+                                    <button
+                                        type="submit"
+                                        disabled={isAuthenticating || formData.password !== formData.confirmPassword}
+                                    >
+                                        {isAuthenticating ? (
+                                            <><span className="auth-spinner"></span>Creating Account...</>
+                                        ) : (
+                                            "Create Account"
+                                        )}
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
                                 Already have an account? <span onClick={() => { setAuthMode("login"); resetSignupFlow(); }}>Sign in</span>
