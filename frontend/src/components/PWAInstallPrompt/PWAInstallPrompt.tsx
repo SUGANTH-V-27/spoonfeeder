@@ -13,10 +13,17 @@ interface BeforeInstallPromptEvent extends Event {
 const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   // Detect mobile device
   const isMobile = () => {
     return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // Detect iOS specifically
+  const checkIsIOS = () => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   };
 
   // Check if running as PWA (already installed)
@@ -26,8 +33,17 @@ const PWAInstallPrompt: React.FC = () => {
   };
 
   useEffect(() => {
+    const iosDevice = checkIsIOS();
+    setIsIOS(iosDevice);
+
     // Only show prompt on mobile devices and not if already installed as PWA
     if (!isMobile() || isPWA()) {
+      return;
+    }
+
+    // For iOS devices, show the prompt immediately since they don't support beforeinstallprompt
+    if (iosDevice) {
+      setShowPrompt(true);
       return;
     }
 
@@ -58,6 +74,12 @@ const PWAInstallPrompt: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isIOS) {
+      // On iOS, we can't programmatically install, so we'll show instructions
+      // The UI will change to show iOS-specific instructions
+      return;
+    }
+
     if (!deferredPrompt) return;
 
     // Show the install prompt
@@ -88,16 +110,38 @@ const PWAInstallPrompt: React.FC = () => {
           <img src="/brain-logo.png" alt="Spoonfeeder Logo" />
         </div>
         <div className="pwa-install-text">
-          <h3>Install Spoonfeeder</h3>
-          <p>Get the full app experience with offline access and faster loading!</p>
+          {isIOS ? (
+            <>
+              <h3>Add to Home Screen</h3>
+              <p>Tap the share button below, then "Add to Home Screen" for the full app experience!</p>
+            </>
+          ) : (
+            <>
+              <h3>Install Spoonfeeder</h3>
+              <p>Get the full app experience with offline access and faster loading!</p>
+            </>
+          )}
         </div>
         <div className="pwa-install-buttons">
-          <button onClick={handleDismiss} className="pwa-install-dismiss">
-            Not now
-          </button>
-          <button onClick={handleInstallClick} className="pwa-install-accept">
-            Install
-          </button>
+          {isIOS ? (
+            <>
+              <button onClick={handleInstallClick} className="pwa-install-ios-instruction">
+                Add to Home Screen
+              </button>
+              <button onClick={handleDismiss} className="pwa-install-dismiss">
+                Not now
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleInstallClick} className="pwa-install-accept">
+                Install
+              </button>
+              <button onClick={handleDismiss} className="pwa-install-dismiss">
+                Not now
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
