@@ -198,8 +198,8 @@ html, body {
 .right-panel {
     box-sizing: border-box;
     align-self: center;
-    width: 480px;
-    padding: 40px 50px;
+    width: 320px;
+    padding: 28px 40px;
     background: transparent;
     display: flex;
     flex-direction: column;
@@ -976,8 +976,8 @@ input[type="password"]::-webkit-clear-button {
     }
 
     .right-panel {
-        width: 400px;
-        padding: 40px 56px;
+        width: 360px;
+        padding: 36px 48px;
     }
 }
 
@@ -998,8 +998,8 @@ input[type="password"]::-webkit-clear-button {
     }
 
     .right-panel {
-        width: 380px;
-        padding: 36px 48px;
+        width: 340px;
+        padding: 32px 44px;
     }
 }
 
@@ -1025,9 +1025,9 @@ input[type="password"]::-webkit-clear-button {
 
     .right-panel {
         width: 100%;
-        max-width: 480px;
+        max-width: 440px;
         margin: 0 auto;
-        padding: 40px 32px;
+        padding: 36px 28px;
         min-height: 100vh;
         display: flex;
         justify-content: center;
@@ -1332,14 +1332,14 @@ input[type="password"]::-webkit-clear-button {
 
 .otp-container {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(6, minmax(40px, 1fr));
+    gap: 5px;
     width: 100%;
 }
 
 .otp-input {
     flex: 1;
-    min-width: 52px;
+    min-width: 40px;
     text-align: center;
     font-size: 18px;
     font-weight: 600;
@@ -1373,7 +1373,7 @@ input[type="password"]::-webkit-clear-button {
 
 @media (min-width: 1024px) {
     .right-panel {
-        width: 520px;
+        width: 400px;
     }
     .login-card .otp-container {
         gap: 10px;
@@ -1389,25 +1389,25 @@ input[type="password"]::-webkit-clear-button {
 
 @media (max-width: 480px) {
     .otp-container {
-        gap: 6px;
+        gap: 5px;
     }
     .otp-input {
-        height: 46px;
+        height: 44px;
         font-size: 18px;
-        line-height: 46px;
-        min-width: 40px;
+        line-height: 44px;
+        min-width: 36px;
     }
 }
 
 @media (max-width: 360px) {
     .otp-container {
-        gap: 5px;
+        gap: 4px;
     }
     .otp-input {
-        height: 42px;
+        height: 40px;
         font-size: 16px;
-        line-height: 42px;
-        min-width: 36px;
+        line-height: 40px;
+        min-width: 34px;
         border-radius: 6px;
     }
 }
