@@ -40,8 +40,8 @@ const Header: React.FC<HeaderProps> = ({
            (window.navigator as any).standalone === true;
   };
 
-  // In PWA mode, hide profile, modes, and fullscreen when sidebar is open
-  const shouldHideRightElements = isPWA() && !sidebarCollapsed;
+  // Hide profile, modes, and fullscreen when sidebar is open (both PWA and mobile browsers)
+  const shouldHideRightElements = !sidebarCollapsed;
 
   // Use actual user data from AuthContext, fallback to props if provided
   const email = user?.email || emailProp || "user@example.com";
@@ -117,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-right">
-        {/* Mode Dropdown - Hide in PWA when sidebar is open */}
+        {/* Mode Dropdown - Hide when sidebar is open */}
         {!shouldHideRightElements && (
         <div className="mode-dropdown">
           <button
@@ -164,7 +164,7 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         )}
 
-        {/* Fullscreen Button - Only show when content is loaded, hide in PWA when sidebar is open, hide on mobile */}
+        {/* Fullscreen Button - Only show when content is loaded, hide when sidebar is open, hide on mobile */}
         {hasContent && !shouldHideRightElements && !isMobile && (
           <div className="fullscreen-btn-container">
             <button
@@ -196,7 +196,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Admin Button - Only show for admin users, hide in PWA when sidebar is open */}
+        {/* Admin Button - Only show for admin users, hide when sidebar is open */}
         {isAdmin && !shouldHideRightElements && (
           <button
             className="admin-btn"
@@ -209,7 +209,7 @@ const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* User Profile Dropdown - Hide in PWA when sidebar is open */}
+        {/* User Profile Dropdown - Hide when sidebar is open */}
         {!shouldHideRightElements && (
         <div className="user-profile" ref={profileDropdownRef}>
           <button

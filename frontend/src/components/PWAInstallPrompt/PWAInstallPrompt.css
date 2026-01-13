@@ -31,6 +31,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
+  background: transparent;
 }
 
 .pwa-install-icon {
@@ -67,6 +68,7 @@
   flex-direction: column;
   justify-content: center;
   text-align: left;
+  background: transparent;
 }
 
 .pwa-install-text h3 {
@@ -90,6 +92,7 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  background: transparent;
 }
 
 .pwa-install-dismiss {
@@ -177,6 +180,57 @@
   box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
 }
 
+.pwa-install-ios-instruction {
+  padding: 8px 16px;
+  background: #2563EB;
+  color: #FFFFFF;
+  border: 1px solid #2563EB;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.pwa-install-ios-instruction::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.pwa-install-ios-instruction:hover::before {
+  width: 120px;
+  height: 120px;
+}
+
+.pwa-install-ios-instruction:hover {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+}
+
+.pwa-install-ios-instruction:focus {
+  outline: none;
+  border-color: #1D4ED8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+}
+
+.pwa-install-ios-instruction:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
   .pwa-install-prompt {
@@ -211,7 +265,8 @@
   }
 
   .pwa-install-dismiss,
-  .pwa-install-accept {
+  .pwa-install-accept,
+  .pwa-install-ios-instruction {
     padding: 8px 12px;
     font-size: 13px;
     width: 100%;
