@@ -86,6 +86,32 @@ const passwordResetVerifySchema = Joi.object({
   })
 });
 
+// OTP-only verification schema (without password)
+const passwordResetOtpOnlySchema = Joi.object({
+  otp: Joi.string().length(6).pattern(/^\d{6}$/).required().messages({
+    'string.length': 'OTP must be 6 digits',
+    'string.pattern.base': 'OTP must be numeric'
+  }),
+  challengeToken: Joi.string().required()
+});
+
+// Password reset completion schema (after OTP verified)
+const passwordResetCompleteSchema = Joi.object({
+  verifiedChallengeToken: Joi.string().required(),
+  newPassword: Joi.string()
+    .min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters long',
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      'any.required': 'Password is required'
+    }),
+  confirmPassword: Joi.any().valid(Joi.ref('newPassword')).required().messages({
+    'any.only': 'Passwords must match'
+  })
+});
+
 // Stateless signup-with-OTP validation schemas
 const signupInitSchema = Joi.object({
   email: Joi.string()
@@ -406,3 +432,120 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// OTP-only verification endpoint (validates OTP without resetting password)
+// Returns a verified challenge token that can be used to complete password reset
+export const verifyPasswordResetOtpOnly = async (req: Request, res: Response) => {
+  try {
+    const { error, value } = passwordResetOtpOnlySchema.validate(req.body, { stripUnknown: true });
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { otp, challengeToken } = value;
+    const record = otpStore.get(challengeToken);
+    if (!record || record.purpose !== "password-reset") {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+
+    const { metadata, expiresAt, attempts, maxAttempts, otpHash } = record;
+    const email = metadata?.email;
+    if (!email) {
+      otpStore.delete(challengeToken);
+      return res.status(400).json({ error: "Invalid reset state" });
+    }
+
+    if (Date.now() > expiresAt) {
+      otpStore.delete(challengeToken);
+      return res.status(400).json({ error: "OTP expired" });
+    }
+
+    if (attempts >= maxAttempts) {
+      otpStore.delete(challengeToken);
+      return res.status(400).json({ error: "Too many attempts. Please restart reset." });
+    }
+
+    const otpMatches = await bcrypt.compare(otp, otpHash);
+    if (!otpMatches) {
+      otpStore.incrementAttempts(challengeToken);
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    // OTP is valid - create a new verified challenge token for the password reset step
+    const verifiedChallengeToken = crypto.randomUUID();
+
+    // Store the verified token with a new purpose to indicate OTP was verified
+    otpStore.set(verifiedChallengeToken, {
+      purpose: "password-reset-verified" as OtpPurpose,
+      otpHash: "", // No longer needed
+      expiresAt: Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000, // Give them time to set password
+      attempts: 0,
+      maxAttempts: 3,
+      metadata: { email }
+    });
+
+    // Delete the old challenge token
+    otpStore.delete(challengeToken);
+
+    return res.status(200).json({
+      message: "OTP verified successfully",
+      verifiedChallengeToken,
+      email
+    });
+  } catch (err) {
+    logger.error("Password reset OTP-only verify error", { error: err });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Complete password reset after OTP has been verified
+export const completePasswordReset = async (req: Request, res: Response) => {
+  try {
+    const { error, value } = passwordResetCompleteSchema.validate(req.body, { stripUnknown: true });
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { verifiedChallengeToken, newPassword } = value;
+    const record = otpStore.get(verifiedChallengeToken);
+
+    if (!record || record.purpose !== "password-reset-verified") {
+      return res.status(400).json({ error: "Invalid or expired session. Please verify OTP again." });
+    }
+
+    const { metadata, expiresAt } = record;
+    const email = metadata?.email;
+
+    if (!email) {
+      otpStore.delete(verifiedChallengeToken);
+      return res.status(400).json({ error: "Invalid reset state" });
+    }
+
+    if (Date.now() > expiresAt) {
+      otpStore.delete(verifiedChallengeToken);
+      return res.status(400).json({ error: "Session expired. Please verify OTP again." });
+    }
+
+    const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (userRes.rows.length === 0) {
+      otpStore.delete(verifiedChallengeToken);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const userId = userRes.rows[0].id;
+    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, userId]);
+
+    otpStore.delete(verifiedChallengeToken);
+
+    const jwtsecret = process.env.JWT_SECRET;
+    if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
+    const token = jwt.sign({ userId, email }, jwtsecret, { expiresIn: "12h" });
+
+    return res.json({
+      message: "Password reset successful",
+      token,
+      user: { id: userId, email }
+    });
+  } catch (err) {
+    logger.error("Password reset complete error", { error: err });
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+

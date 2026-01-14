@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { login, register, signupInit, signupVerify, passwordResetInit, passwordResetVerify } from '../api/auth';
-import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload, PasswordResetInitPayload, PasswordResetVerifyPayload } from '../api/auth';
+import { login, register, signupInit, signupVerify, passwordResetInit, passwordResetVerify, passwordResetVerifyOtpOnly, passwordResetComplete } from '../api/auth';
+import type { LoginData, RegisterData, AuthResponse, SignupInitPayload, SignupVerifyPayload, PasswordResetInitPayload, PasswordResetVerifyPayload, PasswordResetOtpOnlyPayload, PasswordResetCompletePayload } from '../api/auth';
 
 // Admin emails configuration
 const ADMIN_EMAILS = [
@@ -36,6 +36,8 @@ interface AuthContextType {
   verifySignup: (data: SignupVerifyPayload) => Promise<boolean>;
   startPasswordReset: (data: PasswordResetInitPayload) => Promise<{ challengeToken: string }>;
   verifyPasswordReset: (data: PasswordResetVerifyPayload) => Promise<AuthResponse>;
+  verifyPasswordResetOtpOnly: (data: PasswordResetOtpOnlyPayload) => Promise<{ verifiedChallengeToken: string; email: string }>;
+  completePasswordReset: (data: PasswordResetCompletePayload) => Promise<AuthResponse>;
   logout: () => void;
 }
 
@@ -249,6 +251,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const handleVerifyPasswordResetOtpOnly = async (data: PasswordResetOtpOnlyPayload): Promise<{ verifiedChallengeToken: string; email: string }> => {
+    setIsAuthenticating(true);
+    try {
+      const response = await passwordResetVerifyOtpOnly(data);
+      return { verifiedChallengeToken: response.verifiedChallengeToken, email: response.email };
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleCompletePasswordReset = async (data: PasswordResetCompletePayload): Promise<AuthResponse> => {
+    setIsAuthenticating(true);
+    try {
+      const response: AuthResponse = await passwordResetComplete(data);
+      // Auto-authenticate after successful password reset
+      setToken(response.token);
+      setUser(response.user);
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.removeItem('hierarchy');
+      localStorage.removeItem('contentMode');
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (error) {
+        console.error('Error clearing caches on password reset:', error);
+      }
+
+      return response;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
   const handleLogout = () => {
     setToken(null);
     setUser(null);
@@ -286,6 +329,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     verifySignup,
     startPasswordReset,
     verifyPasswordReset,
+    verifyPasswordResetOtpOnly: handleVerifyPasswordResetOtpOnly,
+    completePasswordReset: handleCompletePasswordReset,
     logout: handleLogout,
   };
 

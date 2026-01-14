@@ -104,125 +104,133 @@ const OTP_LENGTH = 6;
 interface OtpInputProps {
     value: string;
     onChange: (value: string) => void;
+    onComplete?: (value: string) => void;
     disabled?: boolean;
     autoFocus?: boolean;
 }
 
-function OtpInput({value, onChange, disabled, autoFocus}: OtpInputProps) {
-    const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
-    const [digits, setDigits] = useState<string[]>(() =>
-        Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? "")
-    );
+function OtpInput({value, onChange, onComplete, disabled, autoFocus}: OtpInputProps) {
+     const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+     const [digits, setDigits] = useState<string[]>(
+         Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? "")
+     );
 
-    useEffect(() => {
-        setDigits(Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? ""));
-    }, [value]);
+     useEffect(() => {
+         setDigits(Array.from({length: OTP_LENGTH}, (_, idx) => value[idx] ?? ""));
+     }, [value]);
 
-    const focusAt = (idx: number) => {
-        const input = inputsRef.current[idx];
-        if (input) {
-            input.focus();
-            input.select();
-        }
-    };
+     const focusAt = (idx: number) => {
+         const input = inputsRef.current[idx];
+         if (input) {
+             input.focus();
+             input.select();
+         }
+     };
 
-    const updateDigits = (next: string[], focusIndex?: number) => {
-        const joined = next.join("").slice(0, OTP_LENGTH);
-        setDigits(next);
-        onChange(joined);
-        if (focusIndex !== undefined) {
-            focusAt(Math.min(Math.max(focusIndex, 0), OTP_LENGTH - 1));
-        }
-    };
+     const updateDigits = (next: string[], focusIndex?: number) => {
+         setDigits(next);
+         const joined = next.join("").slice(0, OTP_LENGTH);
+         onChange(joined);
+         if (focusIndex !== undefined) {
+             focusAt(Math.min(Math.max(focusIndex, 0), OTP_LENGTH - 1));
+         }
+         const isComplete = joined.length === OTP_LENGTH && !next.includes("");
+         if (isComplete && onComplete && !disabled) {
+             // Defer to ensure state updates propagate before submit
+             setTimeout(() => onComplete(joined), 0);
+         }
+     };
 
-    const handleChange = (idx: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (disabled) return;
-        const cleaned = e.target.value.replace(/\D/g, "");
-        if (!cleaned) {
-            const next = [...digits];
-            next[idx] = "";
-            updateDigits(next, idx);
-            return;
-        }
-        const chars = cleaned.split("");
-        const next = [...digits];
-        let cursor = idx;
-        for (let i = 0; i < chars.length && cursor < OTP_LENGTH; i++) {
-            next[cursor] = chars[i];
-            cursor++;
-        }
-        updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
-    };
+     const handleChange = (idx: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+         if (disabled) return;
+         const cleaned = e.target.value.replace(/\D/g, "");
+         if (!cleaned) {
+             const next = [...digits];
+             next[idx] = "";
+             updateDigits(next, idx);
+             return;
+         }
+         const chars = cleaned.split("");
+         const next = [...digits];
+         let cursor = idx;
+         for (let i = 0; i < chars.length && cursor < OTP_LENGTH; i++) {
+             next[cursor] = chars[i];
+             cursor++;
+         }
+         updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
+     };
 
-    const handleKeyDown = (idx: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (disabled) return;
-        const key = e.key;
-        if (key === "Backspace") {
-            if (digits[idx]) {
-                const next = [...digits];
-                next[idx] = "";
-                updateDigits(next, idx);
-            } else if (idx > 0) {
-                const next = [...digits];
-                next[idx - 1] = "";
-                updateDigits(next, idx - 1);
-            }
-            e.preventDefault();
-        } else if (key === "ArrowLeft") {
-            focusAt(Math.max(idx - 1, 0));
-            e.preventDefault();
-        } else if (key === "ArrowRight") {
-            focusAt(Math.min(idx + 1, OTP_LENGTH - 1));
-            e.preventDefault();
-        } else if (key.length === 1 && !/[0-9]/.test(key)) {
-            e.preventDefault();
-        }
-    };
+     const handleKeyDown = (idx: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+         if (disabled) return;
+         const key = e.key;
+         const isPasteCombo = (e.ctrlKey || e.metaKey) && key.toLowerCase() === "v";
+         if (key === "Backspace") {
+             if (digits[idx]) {
+                 const next = [...digits];
+                 next[idx] = "";
+                 updateDigits(next, idx);
+             } else if (idx > 0) {
+                 const next = [...digits];
+                 next[idx - 1] = "";
+                 updateDigits(next, idx - 1);
+             }
+             e.preventDefault();
+         } else if (key === "ArrowLeft") {
+             focusAt(Math.max(idx - 1, 0));
+             e.preventDefault();
+         } else if (key === "ArrowRight") {
+             focusAt(Math.min(idx + 1, OTP_LENGTH - 1));
+             e.preventDefault();
+         } else if (key.length === 1 && !/[0-9]/.test(key)) {
+            if (isPasteCombo) return;
+             e.preventDefault();
+         }
+     };
 
-    const handlePaste = (idx: number) => (e: React.ClipboardEvent<HTMLInputElement>) => {
-        if (disabled) return;
-        const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
-        if (!pasted) return;
-        e.preventDefault();
-        const next = [...digits];
-        let cursor = idx;
-        for (const char of pasted) {
-            if (cursor >= OTP_LENGTH) break;
-            next[cursor] = char;
-            cursor++;
-        }
-        updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
-    };
+     const handlePaste = (idx: number) => (e: React.ClipboardEvent<HTMLInputElement>) => {
+         if (disabled) return;
+         const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+         if (!pasted) return;
+         e.preventDefault();
+         const next = [...digits];
+         let cursor = idx;
+         for (const char of pasted) {
+             if (cursor >= OTP_LENGTH) break;
+             next[cursor] = char;
+             cursor++;
+         }
+         updateDigits(next, cursor < OTP_LENGTH ? cursor : OTP_LENGTH - 1);
+     };
 
-    return (
-        <div className="otp-wrapper fade-in" style={{animationDelay: "0.5s"}}>
-            <div className="otp-container" role="group" aria-label="One time password">
-                {Array.from({length: OTP_LENGTH}).map((_, idx) => (
-                    <input
-                        key={idx}
-                        ref={(el) => { inputsRef.current[idx] = el; }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoComplete={idx === 0 ? "one-time-code" : undefined}
-                        className={`otp-input ${digits[idx] ? "filled" : ""}`}
-                        maxLength={1}
-                        value={digits[idx] ?? ""}
-                        onChange={handleChange(idx)}
-                        onKeyDown={handleKeyDown(idx)}
-                        onPaste={handlePaste(idx)}
-                        disabled={disabled}
-                        autoFocus={autoFocus && idx === 0}
-                        aria-label={`Digit ${idx + 1}`}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+     return (
+         <div className="otp-wrapper fade-in" style={{animationDelay: "0.5s"}}>
+             <div className="otp-container" role="group" aria-label="One time password">
+                 {Array.from({length: OTP_LENGTH}).map((_, idx) => (
+                     <input
+                         key={idx}
+                         ref={(el) => { inputsRef.current[idx] = el; }}
+                         type="text"
+                         inputMode="numeric"
+                         pattern="[0-9]*"
+                         autoComplete={idx === 0 ? "one-time-code" : undefined}
+                         className={`otp-input ${digits[idx] ? "filled" : ""}`}
+                         maxLength={1}
+                         value={digits[idx] ?? ""}
+                         onChange={handleChange(idx)}
+                         onKeyDown={handleKeyDown(idx)}
+                         onPaste={handlePaste(idx)}
+                         disabled={disabled}
+                         autoFocus={autoFocus && idx === 0}
+                         aria-label={`Digit ${idx + 1}`}
+                     />
+                 ))}
+             </div>
+         </div>
+     );
 }
 
 function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode = "login"}: LoginProps) {
-    const {login, isAuthenticating, startSignup, verifySignup, challengeToken, startPasswordReset, verifyPasswordReset} = useAuth();
+    const {login, isAuthenticating, startSignup, verifySignup, challengeToken, startPasswordReset, verifyPasswordResetOtpOnly, completePasswordReset} = useAuth();
     const [eye, setEye] = useState({x: 0, y: 0});
     const [mode, setMode] = useState<Mode>("normal");
     const [peekDoll, setPeekDoll] = useState<string | null>(null);
@@ -242,6 +250,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
     const [resetStep, setResetStep] = useState<1 | 2 | 3>(1);
     const [resetChallenge, setResetChallenge] = useState<string | null>(null);
+    const [verifiedResetChallenge, setVerifiedResetChallenge] = useState<string | null>(null);
     const [resetOtp, setResetOtp] = useState("");
 
     useEffect(() => {
@@ -276,8 +285,8 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         }
     }, [formData.email, formData.password, login, onNavigateToContent]);
 
-    const handleRegister = useCallback(async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRegister = useCallback(async (e?: React.FormEvent) => {
+        e?.preventDefault();
         setError("");
 
         if (signupStep === 1) {
@@ -339,7 +348,9 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         setIsResending(false);
     };
 
-    const handleResendOtp = async () => {
+    const handleResendOtp = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.preventDefault();
+        e?.stopPropagation();
         if (!isValidEmail(formData.email)) {
             setError("Please enter a valid email to resend OTP");
             return;
@@ -364,12 +375,15 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
     const [fade, setFade] = useState(false);
     const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
     const passwordInputRef = useRef<HTMLInputElement>(null);
+    const signupSubmitRef = useRef<HTMLButtonElement>(null);
+    const resetVerifyBtnRef = useRef<HTMLButtonElement>(null);
 
     const sendResetOtp = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
         setOtpVerified(false);
+        setVerifiedResetChallenge(null);
         if (!isValidEmail(formData.email)) {
             setError("Please enter a valid Email");
             return;
@@ -389,30 +403,40 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
 
     const [otpVerified, setOtpVerified] = useState(false);
 
-    const handleOtpStepContinue = useCallback((e?: React.FormEvent) => {
+    const handleOtpStepContinue = useCallback(async (e?: React.FormEvent) => {
         e?.preventDefault();
         setError("");
         setForgotSuccess(null);
         if (resetOtp.replace(/\D/g, "").length !== OTP_LENGTH) {
-            setError("Enter the 6-digit OTP");
-            return;
-        }
-        setOtpVerified(true);
-        setResetStep(3);
-        setForgotSuccess("OTP verified. Set your new password.");
-    }, [resetOtp]);
-
-    const handleVerifyResetOtp = useCallback(async (e?: React.FormEvent) => {
-        e?.preventDefault();
-        setError("");
-        if (!otpVerified) {
-            setError("Verify the OTP first");
-            setResetStep(2);
+            setError("Enter the OTP");
             return;
         }
         if (!resetChallenge) {
             setError("Missing reset token. Please request OTP again.");
             setResetStep(1);
+            return;
+        }
+        try {
+            setForgotLoading(true);
+            const result = await verifyPasswordResetOtpOnly({ otp: resetOtp, challengeToken: resetChallenge });
+            setVerifiedResetChallenge(result.verifiedChallengeToken);
+            setOtpVerified(true);
+            setResetStep(3);
+            setForgotSuccess("OTP verified. Set your new password.");
+        } catch (err: any) {
+            setError(err?.response?.data?.error || err?.message || "Invalid OTP. Please try again.");
+            setOtpVerified(false);
+        } finally {
+            setForgotLoading(false);
+        }
+    }, [resetOtp, resetChallenge, verifyPasswordResetOtpOnly]);
+
+    const handleVerifyResetOtp = useCallback(async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        setError("");
+        if (!otpVerified || !verifiedResetChallenge) {
+            setError("Verify the OTP first");
+            setResetStep(2);
             return;
         }
         if (!formData.password || !formData.confirmPassword) {
@@ -425,23 +449,23 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         }
 
         try {
-            await verifyPasswordReset({
-                otp: resetOtp,
-                challengeToken: resetChallenge,
+            await completePasswordReset({
+                verifiedChallengeToken: verifiedResetChallenge,
                 newPassword: formData.password,
                 confirmPassword: formData.confirmPassword,
             });
             setForgotSuccess("Password updated. Redirecting...");
             setResetStep(1);
             setResetChallenge(null);
+            setVerifiedResetChallenge(null);
             setResetOtp("");
             setOtpVerified(false);
             setAuthMode("login");
             onNavigateToCollegeDepartment();
         } catch (err: any) {
-            setError(err?.response?.data?.error || err?.message || "Invalid OTP or password. Please try again.");
+            setError(err?.response?.data?.error || err?.message || "Failed to update password. Please try again.");
         }
-    }, [otpVerified, resetChallenge, resetOtp, formData.password, formData.confirmPassword, verifyPasswordReset, onNavigateToCollegeDepartment]);
+    }, [otpVerified, verifiedResetChallenge, formData.password, formData.confirmPassword, completePasswordReset, onNavigateToCollegeDepartment]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setEnter(true), 100);
@@ -508,6 +532,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
          forgot: { x: 0, opacity: 1 }
      } as const;
 
+    const isSignupOtpVerifying = signupStep === 2 && isAuthenticating && !isResending;
 
     return (
         <div className="login-page">
@@ -549,7 +574,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                         >
                             <div className="brand-logo-container">
                                 <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
-                                <div className="brand-title">Spoonfeeder</div>
+                                <div className="brand-title">SPOONFEEDER</div>
                             </div>
                             <div className="brand-hero">
                                 Start your journey<br/>
@@ -569,7 +594,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                         >
                             <div className="brand-logo-container">
                                 <img src="/brain-logo.png" alt="Brain Logo" className="brand-logo" />
-                                <div className="brand-title">Spoonfeeder</div>
+                                <div className="brand-title">SPOONFEEDER</div>
                             </div>
                             <div className="brand-hero">
                                 Forgot password?<br/>
@@ -735,7 +760,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             </h2>
                             <p className={`subtitle ${fade ? "fade-in" : ""}`}
                                style={{animationDelay: "0.4s", textAlign: "center", marginBottom:28}}>
-                                {resetStep === 1 ? "We will send a 6-digit OTP to your email" : resetStep === 2 ? "Verify the OTP we sent" : "Set a strong new password"}
+                                {resetStep === 1 ? "We will send an OTP to your email" : resetStep === 2 ? "Verify the OTP we sent" : "Set a strong new password"}
                             </p>
 
                             {resetStep === 1 ? (
@@ -755,7 +780,12 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 <OtpInput
                                     value={resetOtp}
                                     onChange={setResetOtp}
-                                    disabled={isAuthenticating}
+                                    onComplete={() => {
+                                        if (resetStep === 2) {
+                                            resetVerifyBtnRef.current?.click();
+                                        }
+                                    }}
+                                    disabled={isAuthenticating || forgotLoading}
                                     autoFocus
                                 />
                             ) : (
@@ -800,19 +830,39 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                   </>
                               )}
 
-                            <div className={`button-container ${fade ? "fade-in" : ""}`}
-                                 style={{animationDelay: "0.6s"}}>
-                                <button
-                                    type="submit"
-                                    disabled={forgotLoading || isAuthenticating || (resetStep === 2 && resetOtp.replace(/\D/g, "").length !== OTP_LENGTH)}
-                                >
-                                     {forgotLoading || isAuthenticating ? (
-                                         <><span className="auth-spinner"></span>{resetStep === 1 ? "Sending OTP..." : resetStep === 2 ? "Verifying..." : "Updating..."}</>
-                                     ) : (
-                                         resetStep === 1 ? "Send OTP" : resetStep === 2 ? "Verify OTP" : "Update Password"
-                                     )}
-                                </button>
-                            </div>
+                            {/* Hidden button for step 2 auto-trigger */}
+                            <button
+                                ref={resetVerifyBtnRef}
+                                type="submit"
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Show loading spinner during OTP verification (step 2) */}
+                            {resetStep === 2 && (forgotLoading || isAuthenticating) && (
+                                <div className={`button-container ${fade ? "fade-in" : ""}`} style={{animationDelay: "0.6s"}}>
+                                    <button type="button" disabled>
+                                        <span className="auth-spinner"></span>Verifying...
+                                    </button>
+                                </div>
+                            )}
+
+
+                            {/* Show button only for step 1 and step 3 */}
+                            {resetStep !== 2 && (
+                                <div className={`button-container ${fade ? "fade-in" : ""}`}
+                                     style={{animationDelay: "0.6s"}}>
+                                    <button
+                                        type="submit"
+                                        disabled={forgotLoading || isAuthenticating}
+                                    >
+                                         {forgotLoading || isAuthenticating ? (
+                                             <><span className="auth-spinner"></span>{resetStep === 1 ? "Sending OTP..." : "Updating..."}</>
+                                         ) : (
+                                             resetStep === 1 ? "Verify Email" : "Update Password"
+                                         )}
+                                    </button>
+                                </div>
+                            )}
 
 
                             {error && <div className="error-message" style={{marginTop:20}}>{error}</div>}
@@ -824,6 +874,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                 setError(""); // Clear error when switching modes
                                 setResetStep(1);
                                 setResetChallenge(null);
+                                setVerifiedResetChallenge(null);
                                 setResetOtp("");
                                 setOtpVerified(false);
                              }}>Sign in</span>
@@ -935,29 +986,53 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                             setOtpValue(next);
                                             setFormData(prev => ({ ...prev, confirmPassword: next }));
                                         }}
+                                        onComplete={() => {
+                                            if (signupStep === 2) {
+                                                signupSubmitRef.current?.click();
+                                            }
+                                        }}
                                         disabled={isAuthenticating}
                                         autoFocus
                                     />
                                     <div className="resend-otp fade-in" style={{animationDelay: "0.6s", textAlign: "right"}}>
-                                        <span className="forgot-password" style={{marginTop: 8, display: 'inline-block'}} onClick={handleResendOtp}>
+                                        <span className="forgot-password" style={{marginTop: 8, display: 'inline-block'}} onClick={(e) => handleResendOtp(e)}>
                                             {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : isResending ? "Resending..." : "Resend OTP"}
                                         </span>
                                     </div>
                                 </>
                             )}
 
-                            <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
-                                <button
-                                    type="submit"
-                                    disabled={isAuthenticating || (signupStep === 1 && formData.password !== formData.confirmPassword)}
-                                >
-                                    {isAuthenticating ? (
-                                        <><span className="auth-spinner"></span>{signupStep === 1 ? "Sending OTP..." : "Verifying..."}</>
-                                    ) : (
-                                        signupStep === 1 ? "Send OTP" : "Verify OTP"
-                                    )}
-                                </button>
-                            </div>
+                            {/* Hidden button for step 2 auto-trigger */}
+                            <button
+                                ref={signupSubmitRef}
+                                type="submit"
+                                style={{ display: 'none' }}
+                            />
+
+                            {/* Show loading spinner during OTP verification (step 2) */}
+                            {signupStep === 2 && isSignupOtpVerifying && (
+                                <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
+                                    <button type="button" disabled>
+                                        <span className="auth-spinner"></span>Verifying...
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Show button only for step 1 */}
+                            {signupStep === 1 && (
+                                <div className="button-container fade-in" style={{animationDelay: "0.8s"}}>
+                                    <button
+                                        type="submit"
+                                        disabled={isAuthenticating || formData.password !== formData.confirmPassword}
+                                    >
+                                        {isAuthenticating ? (
+                                            <><span className="auth-spinner"></span>Creating Account...</>
+                                        ) : (
+                                            "Create Account"
+                                        )}
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="signup fade-in" style={{animationDelay: "0.9s"}}>
                                 Already have an account? <span onClick={() => { setAuthMode("login"); resetSignupFlow(); }}>Sign in</span>

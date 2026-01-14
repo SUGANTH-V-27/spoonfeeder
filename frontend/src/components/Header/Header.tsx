@@ -34,12 +34,6 @@ const Header: React.FC<HeaderProps> = ({
   const { user, logout: authLogout, isAdmin } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
 
-  // Check if running as PWA
-  const isPWA = () => {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           (window.navigator as any).standalone === true;
-  };
-
   // Hide profile, modes, and fullscreen when sidebar is open (both PWA and mobile browsers)
   const shouldHideRightElements = !sidebarCollapsed;
 

@@ -643,12 +643,6 @@ const ContentView: React.FC<ContentViewProps> = ({
 
     // Swipe gesture for mobile devices: swipe right to open sidebar, swipe left to close
     useEffect(() => {
-      // Check if running as PWA (need to define here since it's used in dependency)
-      const checkPWA = () => {
-        return window.matchMedia('(display-mode: standalone)').matches ||
-               (window.navigator as any).standalone === true;
-      };
-
       // Only enable swipe for mobile devices (both browsers and PWA)
       if (!isMobile() || isFullscreen) {
         return;
