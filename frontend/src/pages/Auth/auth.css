@@ -445,7 +445,7 @@ html, body {
     align-items: center;
     justify-content: flex-start;
     gap: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 0;
 }
 
 .brand-logo {
@@ -1002,7 +1002,7 @@ input[type="password"]::-webkit-clear-button {
 
     .brand {
         position: static;
-        padding: 24px;
+        /*padding: 24px;*/
         font-size: 36px;
         text-align: center;
     }
@@ -1052,7 +1052,7 @@ input[type="password"]::-webkit-clear-button {
 
     .right-panel {
         width: 100%;
-        padding: 0 24px 40px;
+        padding: 0 0 40px;
         min-height: 100vh;
         justify-content: flex-start;
         padding-top: 20px;
@@ -1251,7 +1251,7 @@ input[type="password"]::-webkit-clear-button {
     }
 
     .right-panel {
-        padding: 16px 24px;
+        padding: 16px 0;
         min-height: 100vh;
     }
 
