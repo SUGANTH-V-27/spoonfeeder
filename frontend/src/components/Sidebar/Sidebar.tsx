@@ -204,7 +204,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleItemClick = (item: any) => {
     onItemClick?.(item);
     const reachedLastLevel = mode === 'subtopics';
-    if (reachedLastLevel) {
+    // Only close sidebar on mobile when reaching last level (subtopics)
+    if (reachedLastLevel && isMobile) {
       onCloseSidebar?.();
     }
   };

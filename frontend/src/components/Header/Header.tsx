@@ -34,8 +34,8 @@ const Header: React.FC<HeaderProps> = ({
   const { user, logout: authLogout, isAdmin } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
 
-  // Hide profile, modes, and fullscreen when sidebar is open (both PWA and mobile browsers)
-  const shouldHideRightElements = !sidebarCollapsed;
+  // Hide profile, modes, and fullscreen when sidebar is open (only on mobile devices)
+  const shouldHideRightElements = !sidebarCollapsed && isMobile;
 
   // Use actual user data from AuthContext, fallback to props if provided
   const email = user?.email || emailProp || "user@example.com";
