@@ -403,6 +403,9 @@ body {
   z-index: 9999; /* Above everything else */
   background: #121214;
   animation: fullscreenEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  /* Ensure proper scrolling behavior */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
 }
 
 @keyframes fullscreenEnter {
@@ -474,22 +477,37 @@ body {
 }
 
 .fullscreen-exit-btn {
+  /* Now rendered via React Portal at document.body level */
   position: fixed;
-  top: 10px;
-  right: 10px;
+  top: 20px;
+  right: 20px;
   background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: none;
   color: white;
   padding: 8px;
   border-radius: 6px;
-  cursor: pointer;
-  z-index: 10000;
+  cursor: pointer !important; /* Force pointer cursor over entire button area */
+  z-index: 2147483647; /* Maximum possible z-index */
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   animation: exitButtonFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  /* Force hardware acceleration */
+  transform: translateZ(0);
+  will-change: transform;
+  /* Ensure it's always clickable and visible */
+  pointer-events: auto !important;
+  visibility: visible;
+  opacity: 1;
+  /* Ensure button area is properly defined */
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 @keyframes exitButtonFadeIn {
@@ -503,11 +521,7 @@ body {
   }
 }
 
-.fullscreen-exit-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: scale(1.05);
-}
+
 
 /* ===== Video Placeholder ===== */
 .video-placeholder {
