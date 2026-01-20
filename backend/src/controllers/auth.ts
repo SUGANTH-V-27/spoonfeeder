@@ -8,6 +8,9 @@ import Joi from "joi";
 import winston from "winston";
 import otpStore, { OtpPurpose } from "../services/otpStore";
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&^_\-])[A-Za-z\d@#$!%*?&^_\-]{8,}$/;
+const PASSWORD_PATTERN_MESSAGE = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. @, #, $, !, %, *, ?, &).';
+
 // Logger configuration - optimized for Vercel serverless
 // Vercel doesn't support file-based logging, so we use console only
 const logger = winston.createLogger({
@@ -35,11 +38,11 @@ const registerSchema = Joi.object({
   }),
   password: Joi.string()
     .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
+    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     })
 });
@@ -57,11 +60,9 @@ const loginSchema = Joi.object({
 const passwordResetInitSchema = Joi.object({
   email: Joi.string()
     .email()
-    .pattern(/@gmail\.com$/i)
     .required()
     .messages({
       'string.email': 'Please provide a valid Email address',
-      'string.pattern.base': 'Only Email addresses are allowed for password reset',
       'any.required': 'Email is required'
     })
 });
@@ -74,11 +75,11 @@ const passwordResetVerifySchema = Joi.object({
   challengeToken: Joi.string().required(),
   newPassword: Joi.string()
     .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
+    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     }),
   confirmPassword: Joi.any().valid(Joi.ref('newPassword')).required().messages({
@@ -100,11 +101,11 @@ const passwordResetCompleteSchema = Joi.object({
   verifiedChallengeToken: Joi.string().required(),
   newPassword: Joi.string()
     .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
+    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     }),
   confirmPassword: Joi.any().valid(Joi.ref('newPassword')).required().messages({
@@ -116,17 +117,20 @@ const passwordResetCompleteSchema = Joi.object({
 const signupInitSchema = Joi.object({
   email: Joi.string()
     .email()
-    .pattern(/@gmail\.com$/i)
     .required()
     .messages({
       'string.email': 'Please provide a valid Email address',
-      'string.pattern.base': 'Only Email addresses are allowed for signup',
       'any.required': 'Email is required'
     }),
   password: Joi.string()
     .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/)
-    .required(),
+    .pattern(PASSWORD_REGEX)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters long',
+      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
+      'any.required': 'Password is required'
+    }),
   confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
     'any.only': 'Passwords must match'
   })

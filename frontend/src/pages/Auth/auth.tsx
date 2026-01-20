@@ -95,9 +95,8 @@ interface LoginProps {
 
 // Use the same API base as the rest of the app
 
-
 const isValidEmail = (value: string) =>
-    /^[^\s@]+@gmail\.com$/i.test(value.trim());
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 const OTP_LENGTH = 6;
 
@@ -291,7 +290,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
 
         if (signupStep === 1) {
             if (!isValidEmail(formData.email)) {
-                setError("Please enter a valid Email address");
+                setError("Please enter a valid email address");
                 return;
             }
             if (!formData.password || !formData.confirmPassword) {
@@ -385,7 +384,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
         setOtpVerified(false);
         setVerifiedResetChallenge(null);
         if (!isValidEmail(formData.email)) {
-            setError("Please enter a valid Email");
+            setError("Please enter a valid email");
             return;
         }
         try {
