@@ -30,27 +30,13 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid - clear authentication and redirect
-            console.log('Token expired or invalid - clearing all caches, logging out user');
+            // Token expired or invalid - clear authentication only, keep caches
+            console.log('Token expired or invalid - clearing authentication, preserving caches');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
 
-            localStorage.removeItem('hierarchy');
-            localStorage.removeItem('contentMode');
-
-            try{
-                const keysTORemove: string[] =[];
-                for(let i=0;i<sessionStorage.length;i++){
-                    const key = sessionStorage.key(i);
-                    if(key && (key.startsWith('content_cache_') || key.startsWith('topics_cache_') || key.startsWith('subtopics_cache_'))){
-                        keysTORemove.push(key);
-                    }
-                }
-                keysTORemove.forEach(key => sessionStorage.removeItem(key));
-            } catch (error) {
-                console.error('Error clearing caches:', error);
-            }
-            // Redirect to login page
+            // Keep hierarchy and contentMode for better UX
+            // Only redirect to login, don't clear caches since they might be valid
             window.location.href = '/';
         }
         return Promise.reject(error);

@@ -57,6 +57,20 @@ const EmailIcon = () => {
 };
 
 
+// Professional check/cross icons for password match validation
+const CheckCircleIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.12"/>
+        <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+);
+const CrossCircleIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.12"/>
+        <path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+
 const WhatsAppIcon = () => {
     const [hover, setHover] = useState(false);
     return (
@@ -733,7 +747,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                        aria-label="Email">
                                         <EmailIcon/>
                                     </a>
-                                    <a href="https://wa.me" target="_blank" rel="noopener noreferrer"
+                                    <a href="https://wa.me/917708952739" target="_blank" rel="noopener noreferrer"
                                        className="contact-icon" aria-label="WhatsApp">
                                         <WhatsAppIcon/>
                                     </a>
@@ -759,7 +773,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             </h2>
                             <p className={`subtitle ${fade ? "fade-in" : ""}`}
                                style={{animationDelay: "0.4s", textAlign: "center", marginBottom:28}}>
-                                {resetStep === 1 ? "We will send an OTP to your email" : resetStep === 2 ? "Verify the OTP we sent" : "Set a strong new password"}
+                                {resetStep === 1 ? "We will send an OTP to your email" : resetStep === 2 ? "Verify the OTP we sent" : "Set a new password (min 8 characters)"}
                             </p>
 
                             {resetStep === 1 ? (
@@ -812,7 +826,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                      <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
                                          <input
                                              style={{marginBottom: 0}}
-                                             type="password"
+                                             type={showPwd ? "text" : "password"}
                                              name="confirmPassword"
                                              placeholder="Confirm new password"
                                              value={formData.confirmPassword}
@@ -823,7 +837,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                             disabled={!otpVerified}
                                          />
                                         <span className={`password-match-icon ${formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "match" : "mismatch") : ""}`}>
-                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "✔" : "✖") : ""}
+                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? <CheckCircleIcon /> : <CrossCircleIcon />) : null}
                                         </span>
                                      </div>
                                   </>
@@ -891,7 +905,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                        aria-label="Email">
                                         <EmailIcon/>
                                     </a>
-                                    <a href="https://wa.me" target="_blank" rel="noopener noreferrer"
+                                    <a href="https://wa.me/917708952739" target="_blank" rel="noopener noreferrer"
                                        className="contact-icon" aria-label="WhatsApp">
                                         <WhatsAppIcon/>
                                     </a>
@@ -961,7 +975,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                      <div className="confirm-password-wrapper fade-in" style={{animationDelay: "0.7s"}}>
                                          <input
                                              style={{marginBottom: 0}}
-                                             type="password"
+                                             type={showPwd ? "text" : "password"}
                                              name="confirmPassword"
                                              placeholder="Confirm Password"
                                              value={formData.confirmPassword}
@@ -971,7 +985,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                              required
                                          />
                                         <span className={`password-match-icon ${formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "match" : "mismatch") : ""}`}>
-                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? "✔" : "✖") : ""}
+                                            {formData.password && formData.confirmPassword ? (formData.password === formData.confirmPassword ? <CheckCircleIcon /> : <CrossCircleIcon />) : null}
                                         </span>
                                      </div>
                                  </>
@@ -1049,7 +1063,7 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                                         <EmailIcon/>
                                     </a>
 
-                                    <a href="https://wa.me" target="_blank" rel="noopener noreferrer"
+                                    <a href="https://wa.me/917708952739" target="_blank" rel="noopener noreferrer"
                                        className="contact-icon" aria-label="WhatsApp">
                                         <WhatsAppIcon/>
                                     </a>

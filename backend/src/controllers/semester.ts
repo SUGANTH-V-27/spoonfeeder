@@ -1,5 +1,6 @@
 import { Request,Response } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 export const getsemesters = async (_req:Request,res:Response) =>{
   try{
@@ -64,6 +65,8 @@ export const addSemester = async (req: Request, res: Response) => {
       [name, departmentId]
     );
   
+    // Semesters affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     return res.status(201).json(newSemester.rows[0]);
   }catch(err)
   {
@@ -88,6 +91,8 @@ export const deleteSemester = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Semester not found" });
     }
 
+    // Semesters affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.json({ message: "Semester deleted successfully", semester: result.rows[0] });
   }catch(error){
     console.error("Error deleting semester");

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 export const getTopics = async(req: Request, res: Response) => {
   try{
@@ -61,6 +62,8 @@ export const addTopic = async(req: Request, res: Response) => {
     "INSERT INTO topics (name,course_id) VALUES ($1,$2) RETURNING id,course_id as \"courseId\", name",
     [name,courseId]
   );
+  // Topics affect hierarchy/content, bump global cache version
+  await bumpGlobalCacheVersion();
   return res.status(201).json(newTopic.rows[0]);
   }
   catch(err)
@@ -77,7 +80,7 @@ export const deleteTopic = async(req: Request, res: Response) => {
       return res.status(400).json({ error: "Topic ID is required" });
     }
 
-    const result = await pool.query(
+  const result = await pool.query(
       "DELETE FROM topics WHERE id = $1 RETURNING id, name",
       [id]
     );
@@ -86,7 +89,9 @@ export const deleteTopic = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Topic not found" });
     }
 
-    res.json({ message: "Topic deleted successfully", topic: result.rows[0] });
+  // Topics affect hierarchy/content, bump global cache version
+  await bumpGlobalCacheVersion();
+  res.json({ message: "Topic deleted successfully", topic: result.rows[0] });
   }catch(error){
     console.error("Error deleting topic");
     res.status(500).json({error:"Internal server error"});

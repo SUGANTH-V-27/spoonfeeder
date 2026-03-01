@@ -55,28 +55,33 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Initialize auth state synchronously from localStorage to avoid loading flicker.
+// React Strict Mode double-mounts in dev, which would reset isLoading and cause
+// Loading → Login → Loading → Login flicker. Reading sync avoids that.
+const getInitialAuth = () => {
+  try {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (storedToken && storedUser) {
+      return { token: storedToken, user: JSON.parse(storedUser) as User };
+    }
+  } catch {
+    // Ignore malformed stored user
+  }
+  return { token: null, user: null };
+};
+
+const initial = getInitialAuth();
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(initial.user);
+  const [token, setToken] = useState<string | null>(initial.token);
+  const isLoading = false; // No async init, so no loading phase
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
 
   // Check if current user is admin
   const isAdmin = user ? ADMIN_EMAILS.includes(user.email) : false;
-
-  // Check for existing token on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-
-    setIsLoading(false);
-  }, []);
 
   // Listen for storage changes (token removal from API interceptor)
   useEffect(() => {

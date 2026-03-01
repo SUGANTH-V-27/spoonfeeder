@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 // Controller function
 export const getColleges = async (_req: Request, res: Response) => {
@@ -26,6 +27,8 @@ export const addCollege = async(req: Request, res: Response) => {
       "INSERT INTO colleges (name) VALUES ($1) RETURNING id, name",
       [name]
     );
+    // Any change to colleges affects hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.status(201).json(result.rows[0]);
   }catch(error){
     console.error("Error creating college");
@@ -49,6 +52,8 @@ export const deleteCollege = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "College not found" });
     }
 
+    // Any change to colleges affects hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.json({ message: "College deleted successfully", college: result.rows[0] });
   }catch(error){
     console.error("Error deleting college");

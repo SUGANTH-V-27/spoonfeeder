@@ -226,7 +226,6 @@ html, body {
     font-size: 14px;
     outline: none;
     caret-color: var(--primary-accent);
-    caret-shape: block;
 }
 
 .right-panel input::placeholder {
@@ -906,7 +905,6 @@ input[type="password"]::-webkit-clear-button {
     font-size: 14px;
     outline: none;
     caret-color: var(--primary-accent);
-    caret-shape: block;
 }
 
 .confirm-password-wrapper input::placeholder {
@@ -917,22 +915,29 @@ input[type="password"]::-webkit-clear-button {
     border-color: var(--primary-accent);
 }
 
-.password-match-icon {
+.confirm-password-wrapper .password-match-icon {
     position: absolute;
     right: 16px;
-    top: 48%;
+    top: 50%;
     transform: translateY(-50%);
-    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     user-select: none;
     pointer-events: none;
+    transition: opacity 0.2s ease;
 }
 
-.password-match-icon.match {
+.confirm-password-wrapper .password-match-icon.match {
     color: #10b981;
 }
 
-.password-match-icon.mismatch {
+.confirm-password-wrapper .password-match-icon.mismatch {
     color: #ef4444;
+}
+
+.confirm-password-wrapper .password-match-icon:empty {
+    opacity: 0;
 }
 
 .password-match-icon.hidden {
@@ -1146,9 +1151,8 @@ input[type="password"]::-webkit-clear-button {
         font-size: 11px;
     }
 
-    .password-match-icon {
+    .confirm-password-wrapper .password-match-icon {
         right: 14px;
-        font-size: 16px;
     }
 
     .right-panel button {

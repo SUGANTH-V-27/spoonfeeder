@@ -15,9 +15,89 @@ import "./ContentView.css";
 import { processMathExpressions, isStandaloneMathLine } from "../../utils/mathProcessor";
 import { convertLatexToUnicode } from "../../utils/latexToUnicode";
 import { MarkdownRenderer } from "../../components/MarkdownRenderer/MarkdownRenderer";
+import { getCachedData, setCachedData } from "../../utils/cacheManager";
 
-// Initialize MathJax
-declare global {
+  // Google Slides Detection and Opening
+  const openWithGoogleSlides = async (driveUrl: string) => {
+    if (!isMobile()) {
+      // On desktop, just open the Drive URL
+      window.open(driveUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      // Try to open with Google Slides app
+      // Convert Google Drive sharing URL to Google Slides format
+      const fileId = driveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+      if (fileId) {
+        // Try Google Slides app URL scheme first
+        const slidesAppUrl = `googleslides://docs.google.com/presentation/d/${fileId}/edit`;
+
+        // Create a hidden iframe to try opening the app
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = slidesAppUrl;
+        document.body.appendChild(iframe);
+
+        // Wait a bit to see if the app opens
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Remove the iframe
+        document.body.removeChild(iframe);
+
+        // If we get here, the app might not be installed
+        // Try web fallback
+        const webUrl = `https://docs.google.com/presentation/d/${fileId}/edit`;
+        window.open(webUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        // Fallback to original URL if we can't extract file ID
+        window.open(driveUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error opening with Google Slides:', error);
+      // Fallback to original URL
+      window.open(driveUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const checkGoogleSlidesAvailability = () => {
+    return new Promise<boolean>((resolve) => {
+      if (!isMobile()) {
+        resolve(true); // On desktop, we can always open web version
+        return;
+      }
+
+      // Try to open a test URL with Google Slides
+      const testUrl = 'googleslides://test';
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = testUrl;
+
+      let resolved = false;
+
+      const resolveOnce = (available: boolean) => {
+        if (!resolved) {
+          resolved = true;
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+          resolve(available);
+        }
+      };
+
+      // If the iframe loads without opening an app, app is likely not installed
+      iframe.onload = () => resolveOnce(false);
+      iframe.onerror = () => resolveOnce(false);
+
+      document.body.appendChild(iframe);
+
+      // Timeout after 1.5 seconds - if app doesn't open by then, assume not installed
+      setTimeout(() => resolveOnce(false), 1500);
+    });
+  };
+
+  // Initialize MathJax
+  declare global {
   interface Window {
     MathJax?: {
       typesetPromise: (elements?: HTMLElement[]) => Promise<void>;
@@ -34,6 +114,10 @@ declare global {
   }
 }
 
+// Detect mobile device (utility function)
+const isMobile = () => {
+  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 interface ContentViewProps {
   onNavigateToLogin: () => void;
@@ -50,16 +134,12 @@ const ContentView: React.FC<ContentViewProps> = ({
 }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // start hidden to avoid initial flash
     
-    // Detect mobile device
-    const isMobile = () => {
-      return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    };
-    
     const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [loadingVideos, setLoadingVideos] = useState<Set<string>>(new Set());
   const [openResources, setOpenResources] = useState<Set<number>>(new Set());
   const [fullscreenResource, setFullscreenResource] = useState<number | null>(null);
   const [loadingResources, setLoadingResources] = useState<Set<number>>(new Set());
+  const [showGoogleSlidesPopup, setShowGoogleSlidesPopup] = useState(false);
 
 
   // Load saved mode from localStorage or default to "normal"
@@ -361,30 +441,19 @@ const ContentView: React.FC<ContentViewProps> = ({
     }
   };
 
-  
-  // Session-level content cache using sessionStorage - memoized to prevent recreation
+
+  // Smart content cache using version-based invalidation
+  // For content we use per-device cache: users will reuse cached content
+  // on repeated visits from the same browser until the cache is invalidated
+  // by our versioning logic in cacheManager (or by a future global version).
   const getContentFromCache = useCallback((subtopicId: string): any | null => {
-    try {
-      const cacheKey = `content_cache_${subtopicId}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error reading from cache:', error);
-      }
-      return null;
-    }
+    const cacheKey = `content_cache_${subtopicId}`;
+    return getCachedData<any>(cacheKey);
   }, []);
 
   const setContentInCache = useCallback((subtopicId: string, content: any) => {
-    try {
-      const cacheKey = `content_cache_${subtopicId}`;
-      sessionStorage.setItem(cacheKey, JSON.stringify(content));
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error writing to cache:', error);
-      }
-    }
+    const cacheKey = `content_cache_${subtopicId}`;
+    setCachedData(cacheKey, content);
   }, []);
 
   const notesRef = useRef<HTMLDivElement>(null);
@@ -1915,7 +1984,11 @@ const ContentView: React.FC<ContentViewProps> = ({
                                   borderRadius: '8px'
                     }}
                               />
-                    <div className="play-icon">▶</div>
+                    <div className="play-icon">
+                      <svg width="72" height="72" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="8,5 19,12 8,19" />
+                      </svg>
+                    </div>
                               {video.title && (
                                 <div className="video-title-overlay">{video.title}</div>
                               )}
@@ -2058,12 +2131,20 @@ const ContentView: React.FC<ContentViewProps> = ({
                             window.open(embeddedUrl, '_blank', 'noopener,noreferrer');
                             return;
                           }
-                          // On mobile, for PPTs: open original sharing URL directly
-                          // Google Drive sharing URLs work better than constructed URLs on mobile
+                          // On mobile, for PPTs: check Google Slides availability first
                           if (isMobile() && !isPdf) {
-                            // Use the original sharing URL directly - this works best on mobile
-                            // The sharing URL already has the correct format and permissions
-                            window.open(res.url, '_blank', 'noopener,noreferrer');
+                            checkGoogleSlidesAvailability().then(isAvailable => {
+                              if (isAvailable) {
+                                // Google Slides is available, try to open with it
+                                openWithGoogleSlides(res.url);
+                              } else {
+                                // Google Slides not available, show download popup
+                                setShowGoogleSlidesPopup(true);
+                              }
+                            }).catch(() => {
+                              // On error, fallback to web version
+                              window.open(res.url, '_blank', 'noopener,noreferrer');
+                            });
                             return;
                           }
                           // On desktop, open inline first
@@ -2798,6 +2879,65 @@ const ContentView: React.FC<ContentViewProps> = ({
           </svg>
         </button>,
         document.body
+      )}
+
+      {/* Google Slides Download Popup */}
+      {showGoogleSlidesPopup && (
+        <div className="modal-overlay" onClick={() => setShowGoogleSlidesPopup(false)}>
+          <div className="modal-content google-slides-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Google Slides Required</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowGoogleSlidesPopup(false)}
+                aria-label="Close"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="slides-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+              </div>
+              <p>To view PowerPoint presentations, you need Google Slides installed on your device.</p>
+              <div className="modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowGoogleSlidesPopup(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    // Open Google Play/App Store for Google Slides
+                    const userAgent = navigator.userAgent.toLowerCase();
+                    if (userAgent.includes('android')) {
+                      window.open('https://play.google.com/store/apps/details?id=com.google.android.apps.docs.editors.slides', '_blank');
+                    } else if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+                      window.open('https://apps.apple.com/app/google-slides/id879478102', '_blank');
+                    } else {
+                      // Fallback for other devices
+                      window.open('https://www.google.com/slides/about/', '_blank');
+                    }
+                    setShowGoogleSlidesPopup(false);
+                  }}
+                >
+                  Download Google Slides
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       {!isFullscreen && (() => {
         console.log('Calculating sidebar - selectedCourse:', selectedCourse, 'topics:', topics, 'courses:', courses);

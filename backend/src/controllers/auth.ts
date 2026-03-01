@@ -8,9 +8,6 @@ import Joi from "joi";
 import winston from "winston";
 import otpStore, { OtpPurpose } from "../services/otpStore";
 
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&^_\-])[A-Za-z\d@#$!%*?&^_\-]{8,}$/;
-const PASSWORD_PATTERN_MESSAGE = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. @, #, $, !, %, *, ?, &).';
-
 // Logger configuration - optimized for Vercel serverless
 // Vercel doesn't support file-based logging, so we use console only
 const logger = winston.createLogger({
@@ -38,11 +35,9 @@ const registerSchema = Joi.object({
   }),
   password: Joi.string()
     .min(8)
-    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     })
 });
@@ -75,11 +70,9 @@ const passwordResetVerifySchema = Joi.object({
   challengeToken: Joi.string().required(),
   newPassword: Joi.string()
     .min(8)
-    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     }),
   confirmPassword: Joi.any().valid(Joi.ref('newPassword')).required().messages({
@@ -101,11 +94,9 @@ const passwordResetCompleteSchema = Joi.object({
   verifiedChallengeToken: Joi.string().required(),
   newPassword: Joi.string()
     .min(8)
-    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     }),
   confirmPassword: Joi.any().valid(Joi.ref('newPassword')).required().messages({
@@ -124,11 +115,9 @@ const signupInitSchema = Joi.object({
     }),
   password: Joi.string()
     .min(8)
-    .pattern(PASSWORD_REGEX)
     .required()
     .messages({
       'string.min': 'Password must be at least 8 characters long',
-      'string.pattern.base': PASSWORD_PATTERN_MESSAGE,
       'any.required': 'Password is required'
     }),
   confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
@@ -258,7 +247,7 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
     const newUser = result.rows[0];
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
-    const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret, { expiresIn: "12h" });
+    const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret);
     return res.status(201).json({ message: "User registered", user: { id: newUser.id, email: newUser.email }, token });
   } catch (err) {
     logger.error("Signup OTP verify error", { error: err, email: userEmail });
@@ -293,7 +282,7 @@ export const register = async (_req: Request, res: Response) => {
         const jwtsecret = process.env.JWT_SECRET;
         if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
-        const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret, { expiresIn: "12h" });
+        const token = jwt.sign({ userId: newUser.id, email: newUser.email }, jwtsecret);
         return res.status(201).json({ message: "User registered", user: { id: newUser.id, email: newUser.email }, token });
     } catch (err) {
         logger.error("Registration error", {
@@ -327,7 +316,7 @@ export const login = async (req: Request, res: Response) => {
         const jwtsecret = process.env.JWT_SECRET;
         if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
 
-        const token = jwt.sign({ userId: existingUser.id, email: existingUser.email }, jwtsecret, { expiresIn: "12h" });
+        const token = jwt.sign({ userId: existingUser.id, email: existingUser.email }, jwtsecret);
         return res.json({ message: "Login successful", user: { id: existingUser.id, email: existingUser.email }, token });
     } catch (err) {
         logger.error("Login error", {
@@ -429,7 +418,7 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
 
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
-    const token = jwt.sign({ userId, email }, jwtsecret, { expiresIn: "12h" });
+    const token = jwt.sign({ userId, email }, jwtsecret);
     return res.json({ message: "Password reset successful", token, user: { id: userId, email } });
   } catch (err) {
     logger.error("Password reset OTP verify error", { error: err });
@@ -540,7 +529,7 @@ export const completePasswordReset = async (req: Request, res: Response) => {
 
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
-    const token = jwt.sign({ userId, email }, jwtsecret, { expiresIn: "12h" });
+    const token = jwt.sign({ userId, email }, jwtsecret);
 
     return res.json({
       message: "Password reset successful",

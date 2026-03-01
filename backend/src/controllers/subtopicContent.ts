@@ -1,5 +1,6 @@
 import { Request,Response } from "express";
 import pool, { queryWithTimeout } from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 export const getSubtopicContent = async (_req:Request,res:Response)=>{
     try{
@@ -46,6 +47,8 @@ export const addSubtopicContent = async (_req:Request,res:Response)=>{
             3 // 3 retries for critical operations
         );
 
+        // Content changes must reflect everywhere, bump global cache version
+        await bumpGlobalCacheVersion();
         res.status(201).json(result.rows[0]);
     }catch(err)
     {
@@ -72,6 +75,8 @@ export const deleteSubtopicContent = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Content not found" });
     }
 
+    // Content changes must reflect everywhere, bump global cache version
+    await bumpGlobalCacheVersion();
     res.json({ message: "Content deleted successfully", content: result.rows[0] });
   }catch(error){
     console.error("Error deleting content");

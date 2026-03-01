@@ -1,5 +1,6 @@
 import { Response,Request } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
   export const getCourse = async(req: Request, res: Response) => {
     try{
@@ -39,6 +40,8 @@ import pool from "../db/connection";
       "INSERT INTO courses (name,semester_id) VALUES ($1,$2) RETURNING id,semester_id as \"semesterId\", name",
       [name,semesterId]
     );
+    // Courses affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     return res.status(201).json(newCourse.rows[0]);
   }catch(err)
   {
@@ -63,6 +66,8 @@ export const deleteCourse = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Course not found" });
     }
 
+    // Courses affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.json({ message: "Course deleted successfully", course: result.rows[0] });
   }catch(error){
     console.error("Error deleting course");

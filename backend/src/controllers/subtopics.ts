@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 export const getSubtopics = async(req: Request, res: Response) => {
   try{
@@ -42,6 +43,8 @@ export const addSubtopic = async(req: Request, res: Response) => {
     "INSERT INTO subtopics (name,topic_id) VALUES ($1,$2) RETURNING id,topic_id as \"topicId\", name",
     [name,topicId]
   );
+  // Subtopics affect hierarchy/content, bump global cache version
+  await bumpGlobalCacheVersion();
   return res.status(201).json(newSubtopic.rows[0]);
   }catch(err)
   {
@@ -57,7 +60,7 @@ export const deleteSubtopic = async(req: Request, res: Response) => {
       return res.status(400).json({ error: "Subtopic ID is required" });
     }
 
-    const result = await pool.query(
+  const result = await pool.query(
       "DELETE FROM subtopics WHERE id = $1 RETURNING id, name",
       [id]
     );
@@ -66,7 +69,9 @@ export const deleteSubtopic = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Subtopic not found" });
     }
 
-    res.json({ message: "Subtopic deleted successfully", subtopic: result.rows[0] });
+  // Subtopics affect hierarchy/content, bump global cache version
+  await bumpGlobalCacheVersion();
+  res.json({ message: "Subtopic deleted successfully", subtopic: result.rows[0] });
   }catch(error){
     console.error("Error deleting subtopic");
     res.status(500).json({error:"Internal server error"});
@@ -87,7 +92,7 @@ export const updateSubtopic = async(req: Request, res: Response) => {
       return res.status(400).json({ error: "Name is required and cannot be empty" });
     }
 
-    const result = await pool.query(
+  const result = await pool.query(
       "UPDATE subtopics SET name = $1 WHERE id = $2 RETURNING id, topic_id as \"topicId\", name",
       [name.trim(), id]
     );
@@ -96,7 +101,9 @@ export const updateSubtopic = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Subtopic not found" });
     }
 
-    res.json(result.rows[0]);
+  // Subtopics affect hierarchy/content, bump global cache version
+  await bumpGlobalCacheVersion();
+  res.json(result.rows[0]);
   }catch(error){
     console.error("Error updating subtopic:", error);
     res.status(500).json({error:"Internal server error"});

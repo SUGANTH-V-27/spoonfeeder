@@ -11,9 +11,22 @@ import { getSubtopics, addSubtopic, deleteSubtopic, updateSubtopic } from "../co
 import { register, login, sendSignupOtp, verifySignupOtp, sendPasswordResetOtp, verifyPasswordResetOtp, verifyPasswordResetOtpOnly, completePasswordReset } from "../controllers/auth";
 import { getSubtopicContent, addSubtopicContent, deleteSubtopicContent } from "../controllers/subtopicContent";
 import {noCache} from "../middleware/noCache";
+import { getGlobalCacheVersion } from "../services/cacheVersion";
 
 const router = Router();
 router.get("/health",noCache, getHealth);
+
+
+// Global cache version - used by frontend to know when to clear all local caches
+router.get("/cache-version", noCache, async (_req, res) => {
+  try {
+    const version = await getGlobalCacheVersion();
+    res.json({ version });
+  } catch (error) {
+    console.error("Error getting cache version", error);
+    res.status(500).json({ error: "Failed to get cache version" });
+  }
+});
 
 
 router.post("/auth/register", register);

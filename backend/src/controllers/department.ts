@@ -1,5 +1,6 @@
 import { Request,Response } from "express";
 import pool from "../db/connection";
+import { bumpGlobalCacheVersion } from "../services/cacheVersion";
 
 // GET: Return all departments for a specific college (by ID or name)
 export const getDepartments = async(_req:Request,res:Response) =>{
@@ -56,6 +57,8 @@ export const addDepartment = async (req: Request, res: Response) => {
       [name, collegeId]
     );
   
+    // Departments affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.status(201).json(newDept.rows[0]);
   }catch(err){
     console.error("Failed to add departments ",err);
@@ -79,6 +82,8 @@ export const deleteDepartment = async(req: Request, res: Response) => {
       return res.status(404).json({ error: "Department not found" });
     }
 
+    // Departments affect hierarchy, bump global cache version
+    await bumpGlobalCacheVersion();
     res.json({ message: "Department deleted successfully", department: result.rows[0] });
   }catch(error){
     console.error("Error deleting department");
