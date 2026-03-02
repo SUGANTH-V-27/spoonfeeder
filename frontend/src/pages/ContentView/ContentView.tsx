@@ -17,82 +17,42 @@ import { convertLatexToUnicode } from "../../utils/latexToUnicode";
 import { MarkdownRenderer } from "../../components/MarkdownRenderer/MarkdownRenderer";
 import { getCachedData, setCachedData } from "../../utils/cacheManager";
 
-  // Google Slides Detection and Opening
-  const openWithGoogleSlides = async (driveUrl: string) => {
+  // Google Slides: Try to open with app first. Returns true if app opened (page went hidden), false otherwise.
+  const tryOpenWithGoogleSlides = (driveUrl: string): Promise<boolean> => {
     if (!isMobile()) {
-      // On desktop, just open the Drive URL
       window.open(driveUrl, '_blank', 'noopener,noreferrer');
-      return;
+      return Promise.resolve(true);
     }
 
-    try {
-      // Try to open with Google Slides app
-      // Convert Google Drive sharing URL to Google Slides format
-      const fileId = driveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
-      if (fileId) {
-        // Try Google Slides app URL scheme first
-        const slidesAppUrl = `googleslides://docs.google.com/presentation/d/${fileId}/edit`;
-
-        // Create a hidden iframe to try opening the app
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = slidesAppUrl;
-        document.body.appendChild(iframe);
-
-        // Wait a bit to see if the app opens
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Remove the iframe
-        document.body.removeChild(iframe);
-
-        // If we get here, the app might not be installed
-        // Try web fallback
-        const webUrl = `https://docs.google.com/presentation/d/${fileId}/edit`;
-        window.open(webUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        // Fallback to original URL if we can't extract file ID
-        window.open(driveUrl, '_blank', 'noopener,noreferrer');
-      }
-    } catch (error) {
-      console.error('Error opening with Google Slides:', error);
-      // Fallback to original URL
+    const fileId = driveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || driveUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/)?.[1];
+    if (!fileId) {
       window.open(driveUrl, '_blank', 'noopener,noreferrer');
+      return Promise.resolve(true);
     }
-  };
 
-  const checkGoogleSlidesAvailability = () => {
     return new Promise<boolean>((resolve) => {
-      if (!isMobile()) {
-        resolve(true); // On desktop, we can always open web version
-        return;
-      }
-
-      // Try to open a test URL with Google Slides
-      const testUrl = 'googleslides://test';
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = testUrl;
-
       let resolved = false;
-
-      const resolveOnce = (available: boolean) => {
+      const resolveOnce = (opened: boolean) => {
         if (!resolved) {
           resolved = true;
-          if (iframe.parentNode) {
-            document.body.removeChild(iframe);
-          }
-          resolve(available);
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+          if (iframe.parentNode) document.body.removeChild(iframe);
+          resolve(opened);
         }
       };
 
-      // If the iframe loads without opening an app, app is likely not installed
-      iframe.onload = () => resolveOnce(false);
-      iframe.onerror = () => resolveOnce(false);
+      const onVisibilityChange = () => {
+        if (document.hidden) resolveOnce(true);
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
 
+      const slidesAppUrl = `googleslides://docs.google.com/presentation/d/${fileId}/edit`;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = slidesAppUrl;
       document.body.appendChild(iframe);
 
-      // Timeout after 1.5 seconds - if app doesn't open by then, assume not installed
-      setTimeout(() => resolveOnce(false), 1500);
+      setTimeout(() => resolveOnce(false), 2000);
     });
   };
 
@@ -117,6 +77,12 @@ import { getCachedData, setCachedData } from "../../utils/cacheManager";
 // Detect mobile device (utility function)
 const isMobile = () => {
   return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Detect iOS devices (iPhone/iPad/iPod, including iPadOS reporting as Mac)
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
 interface ContentViewProps {
@@ -1055,7 +1021,12 @@ const ContentView: React.FC<ContentViewProps> = ({
         console.log('🔗 PDF URL - Worker URL:', workerUrl);
       }
 
-      // Direct embed of Cloudflare Worker URL (no PDF.js viewer)
+      // Apply the Google Docs viewer ONLY on iOS (prevents forced downloads).
+      // Keep Android/Desktop/Mac using the direct PDF URL as before.
+      if (isIOS()) {
+        // Hint Google to use the first signed-in account
+        return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(workerUrl)}&authuser=0`;
+      }
       return workerUrl;
     } else {
       // For PPTs and other files: Use direct Google Drive preview URL
@@ -1065,8 +1036,9 @@ const ContentView: React.FC<ContentViewProps> = ({
 
       const fileId = fileIdMatch[1];
       // Use direct Google Drive preview URL - works best for public files
-      // This format works for public files and provides native Google Drive viewer
-      return `https://drive.google.com/file/d/${fileId}/preview`;
+      // This format works for public files and provides native Google Drive viewer.
+      // Hint Google to use the first signed-in account.
+      return `https://drive.google.com/file/d/${fileId}/preview?authuser=0`;
     }
   };
 
@@ -1920,8 +1892,8 @@ const ContentView: React.FC<ContentViewProps> = ({
                           )}
                           {playingVideos[videoId] ? (
                   <iframe
-                              src={`https://www.youtube.com/embed/${getYoutubeId(video.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
-                    allow="autoplay; encrypted-media; fullscreen"
+                              src={`https://www.youtube.com/embed/${getYoutubeId(video.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&showinfo=0&playsinline=1${isIOS() ? '&mute=1' : ''}`}
+                    allow={isIOS() ? "autoplay; encrypted-media; fullscreen; picture-in-picture; muted" : "autoplay; encrypted-media; fullscreen; picture-in-picture"}
                     allowFullScreen
                               onLoad={() => {
                                 setLoadingVideos(prev => {
@@ -2131,20 +2103,10 @@ const ContentView: React.FC<ContentViewProps> = ({
                             window.open(embeddedUrl, '_blank', 'noopener,noreferrer');
                             return;
                           }
-                          // On mobile, for PPTs: check Google Slides availability first
+                          // On mobile, for PPTs: open with Google Docs/Drive viewer (OS may offer to open Slides app)
                           if (isMobile() && !isPdf) {
-                            checkGoogleSlidesAvailability().then(isAvailable => {
-                              if (isAvailable) {
-                                // Google Slides is available, try to open with it
-                                openWithGoogleSlides(res.url);
-                              } else {
-                                // Google Slides not available, show download popup
-                                setShowGoogleSlidesPopup(true);
-                              }
-                            }).catch(() => {
-                              // On error, fallback to web version
-                              window.open(res.url, '_blank', 'noopener,noreferrer');
-                            });
+                            const embeddedUrl = getEmbeddedUrl(res.url, isPdf);
+                            window.open(embeddedUrl, '_blank', 'noopener,noreferrer');
                             return;
                           }
                           // On desktop, open inline first

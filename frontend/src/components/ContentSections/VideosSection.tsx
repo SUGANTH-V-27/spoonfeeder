@@ -26,6 +26,10 @@ export const VideosSection: React.FC<VideosSectionProps> = ({
     return match ? match[1] : "";
   };
 
+  const isIOS = () =>
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   const getYoutubeThumbnail = (url: string) => {
     const videoId = getYoutubeId(url);
     if (!videoId) return "";
@@ -81,8 +85,8 @@ export const VideosSection: React.FC<VideosSectionProps> = ({
                 <div className="video-wrapper small">
                   {isPlaying ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${getYoutubeId(video.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
-                      allow="autoplay; encrypted-media"
+                      src={`https://www.youtube.com/embed/${getYoutubeId(video.youtubeUrl)}?autoplay=1&rel=0&modestbranding=1&showinfo=0&playsinline=1${isIOS() ? '&mute=1' : ''}`}
+                      allow={isIOS() ? "autoplay; encrypted-media; fullscreen; picture-in-picture; muted" : "autoplay; encrypted-media; fullscreen; picture-in-picture"}
                       allowFullScreen
                     />
                   ) : (
@@ -128,7 +132,11 @@ export const VideosSection: React.FC<VideosSectionProps> = ({
                           borderRadius: '8px'
                         }}
                       />
-                      <div className="play-icon">▶</div>
+                      <div className="play-icon" aria-hidden="true">
+                        <svg width="72" height="72" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="8,5 19,12 8,19" />
+                        </svg>
+                      </div>
                       {video.title && (
                         <div className="video-title-overlay">{video.title}</div>
                       )}

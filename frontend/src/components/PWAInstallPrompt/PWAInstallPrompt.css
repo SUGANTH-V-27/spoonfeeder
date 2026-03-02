@@ -15,6 +15,13 @@
   animation: pwaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Prevent iOS tap flash / highlight */
+.pwa-install-prompt,
+.pwa-install-prompt * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
 @keyframes pwaSlideUp {
   from {
     opacity: 0;
@@ -218,6 +225,102 @@
   border-color: #1D4ED8;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+}
+
+/* iOS inline steps (no black overlay) */
+.pwa-ios-inline {
+  border-top: 1px solid #26262A;
+  padding: 12px 16px 14px;
+  background: transparent;
+}
+
+.pwa-ios-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.pwa-ios-inline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.pwa-ios-inline-close {
+  background: transparent;
+  border: 0;
+  color: #D1D5DB;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.pwa-ios-inline-close:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pwa-ios-inline-note {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 10px;
+  color: #D1D5DB;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.pwa-ios-steps {
+  margin: 10px 0 0;
+  padding: 0 0 0 18px;
+  color: #D1D5DB;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pwa-ios-steps li + li {
+  margin-top: 8px;
+}
+
+.pwa-ios-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.pwa-ios-secondary {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #26262A;
+  border: 1px solid #374151;
+  color: #D1D5DB;
+}
+
+.pwa-ios-secondary:active {
+  background: #374151;
+  border-color: #4B5563;
+  color: #fff;
+}
+
+/* On touch devices, avoid sticky hover causing dark/odd flashes */
+@media (hover: none) and (pointer: coarse) {
+  .pwa-install-dismiss:hover,
+  .pwa-install-accept:hover,
+  .pwa-install-ios-instruction:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .pwa-install-accept:hover::before,
+  .pwa-install-ios-instruction:hover::before {
+    width: 0;
+    height: 0;
+  }
 }
 
 .pwa-install-ios-instruction:focus {

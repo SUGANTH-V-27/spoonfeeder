@@ -14,16 +14,29 @@ const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Detect mobile device
   const isMobile = () => {
-    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Don't rely only on viewport width (iPad landscape can be >768).
+    // iPadOS 13+ can report as Mac in userAgent, so we also include checkIsIOS().
+    return checkIsIOS() || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
 
   // Detect iOS specifically
   const checkIsIOS = () => {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  };
+
+  // Detect Safari on iOS (A2HS is most reliable there; in-app browsers can hide it)
+  const isIOSSafari = () => {
+    if (!checkIsIOS()) return false;
+    const ua = navigator.userAgent;
+    const isSafari = /Safari/i.test(ua);
+    const isOtheriOSBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(ua);
+    return isSafari && !isOtheriOSBrowser;
   };
 
   // Check if running as PWA (already installed)
@@ -75,8 +88,10 @@ const PWAInstallPrompt: React.FC = () => {
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      // On iOS, we can't programmatically install, so we'll show instructions
-      // The UI will change to show iOS-specific instructions
+      // iOS doesn't allow triggering "Add to Home Screen" programmatically.
+      // Show a clear inline instructions panel instead.
+      setCopied(false);
+      setShowIOSInstructions(true);
       return;
     }
 
@@ -100,6 +115,27 @@ const PWAInstallPrompt: React.FC = () => {
     setShowPrompt(false);
   };
 
+  const handleCopyLink = async () => {
+    try {
+      const url = window.location.href;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // Fallback for older iOS Safari
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  };
+
   // Don't show prompt if not mobile, already installed as PWA, or if prompt is not set to show
   if (!isMobile() || isPWA() || !showPrompt) return null;
 
@@ -113,7 +149,7 @@ const PWAInstallPrompt: React.FC = () => {
           {isIOS ? (
             <>
               <h3>Add to Home Screen</h3>
-              <p>Tap the share button below, then "Add to Home Screen" for the full app experience!</p>
+              <p>On iPhone/iPad you must use the browser menu to add it. Tap below to see the steps.</p>
             </>
           ) : (
             <>
@@ -144,6 +180,41 @@ const PWAInstallPrompt: React.FC = () => {
           )}
         </div>
       </div>
+
+      {isIOS && showIOSInstructions && (
+        <div className="pwa-ios-inline" role="region" aria-label="Add to Home Screen steps">
+          <div className="pwa-ios-inline-header">
+            <div className="pwa-ios-inline-title">Steps</div>
+            <button
+              className="pwa-ios-inline-close"
+              onClick={() => setShowIOSInstructions(false)}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          {!isIOSSafari() ? (
+            <div className="pwa-ios-inline-note">
+              You’re not in Safari. Open this site in <b>Safari</b> to see “Add to Home Screen”.
+            </div>
+          ) : null}
+
+          <ol className="pwa-ios-steps">
+            <li>Tap the <b>Share</b> button in your browser.</li>
+            <li>Scroll and tap <b>Add to Home Screen</b>.</li>
+            <li>Tap <b>Add</b>.</li>
+          </ol>
+
+          {!isIOSSafari() ? (
+            <div className="pwa-ios-inline-actions">
+              <button className="pwa-ios-secondary" onClick={handleCopyLink}>
+                {copied ? 'Copied' : 'Copy Link'}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

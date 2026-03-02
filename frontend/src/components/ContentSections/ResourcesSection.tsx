@@ -14,8 +14,10 @@ const getEmbeddedUrl = (url: string, isPdf: boolean) => {
     const fullPdfUrl = githubBaseUrl + url; // url is just the filename
     return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(fullPdfUrl)}`;
   } else {
-    // For PPTs and other files: Use Google Docs viewer with preview URL
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(`https://drive.google.com/uc?id=${fileId}`)}&embedded=true`;
+    // For PPTs and other files: Use Google Docs viewer with preview URL.
+    // Hint Google to use the first signed-in account (authuser=0).
+    const drivePreviewUrl = `https://drive.google.com/uc?id=${fileId}`;
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(drivePreviewUrl)}&embedded=true&authuser=0`;
   }
 };
 
