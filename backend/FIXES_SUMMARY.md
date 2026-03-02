@@ -79,6 +79,7 @@ app.listen(PORT);  // Server starts immediately, DB might not be ready
 
 **File**: `backend/src/db/schema.sql` and `backend/src/db/migration_indexes.sql`
 
+
 Added critical indexes:
 - `idx_users_email` (UNIQUE) - **Critical for login speed**
 - `idx_password_resets_token` - Fast password reset lookups
