@@ -61,4 +61,3 @@ router.post("/subtopics/:subtopicId/content", requireAdmin, addSubtopicContent);
 router.delete("/subtopic-content/:id", requireAdmin, deleteSubtopicContent);
 
 export { router as fullRouter };
-
