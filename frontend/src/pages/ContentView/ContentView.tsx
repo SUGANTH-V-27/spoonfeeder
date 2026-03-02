@@ -17,45 +17,6 @@ import { convertLatexToUnicode } from "../../utils/latexToUnicode";
 import { MarkdownRenderer } from "../../components/MarkdownRenderer/MarkdownRenderer";
 import { getCachedData, setCachedData } from "../../utils/cacheManager";
 
-  // Google Slides: Try to open with app first. Returns true if app opened (page went hidden), false otherwise.
-  const tryOpenWithGoogleSlides = (driveUrl: string): Promise<boolean> => {
-    if (!isMobile()) {
-      window.open(driveUrl, '_blank', 'noopener,noreferrer');
-      return Promise.resolve(true);
-    }
-
-    const fileId = driveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || driveUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/)?.[1];
-    if (!fileId) {
-      window.open(driveUrl, '_blank', 'noopener,noreferrer');
-      return Promise.resolve(true);
-    }
-
-    return new Promise<boolean>((resolve) => {
-      let resolved = false;
-      const resolveOnce = (opened: boolean) => {
-        if (!resolved) {
-          resolved = true;
-          document.removeEventListener('visibilitychange', onVisibilityChange);
-          if (iframe.parentNode) document.body.removeChild(iframe);
-          resolve(opened);
-        }
-      };
-
-      const onVisibilityChange = () => {
-        if (document.hidden) resolveOnce(true);
-      };
-      document.addEventListener('visibilitychange', onVisibilityChange);
-
-      const slidesAppUrl = `googleslides://docs.google.com/presentation/d/${fileId}/edit`;
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = slidesAppUrl;
-      document.body.appendChild(iframe);
-
-      setTimeout(() => resolveOnce(false), 2000);
-    });
-  };
-
   // Initialize MathJax
   declare global {
   interface Window {
