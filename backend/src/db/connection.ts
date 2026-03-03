@@ -1,48 +1,47 @@
 import { config } from 'dotenv';
-import {Pool} from "pg";
+import { Pool } from "pg";
 import { createClient } from '@supabase/supabase-js';
 
 // Load environment variables from .env file
 config();
 
-// Optimized for Vercel serverless - connection pooling is critical
-// Vercel functions are stateless, so we need efficient connection management
-const pool = new Pool({
+// Correct pattern for Vercel + Postgres: reuse a single pool across invocations
+// to avoid creating too many connections.
+let pool: Pool;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _pgPool: Pool | undefined;
+}
+
+if (!global._pgPool) {
+  global._pgPool = new Pool({
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT || "5432"),
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    // Vercel serverless optimization - smaller pool per function instance
-    max: process.env.VERCEL ? 2 : (process.env.NODE_ENV === 'production' ? 5 : 20), // 2 for Vercel (serverless), 5 for traditional prod
-    min: 0, // Don't keep idle connections - important for serverless
-    idleTimeoutMillis: process.env.VERCEL ? 10000 : 30000, // 10s for Vercel (faster cleanup), 30s for traditional
-    connectionTimeoutMillis: 10000, // Increased to 10s - give more time for connection establishment
-    allowExitOnIdle: true,
-    // SSL settings for production
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    // Add keep-alive settings to maintain connection stability
+    // Keep pool small on serverless to prevent connection storms
+    max: 5,
+    min: 0,
+    ssl: process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
     keepAlive: true,
     keepAliveInitialDelayMillis: 0,
-    // Connection validation
-    query_timeout: 15000, // 15s query timeout
-    statement_timeout: 15000, // 15s statement timeout
-    idle_in_transaction_session_timeout: 30000, // 30s idle transaction timeout
-});
+  });
+}
 
-// Helper function to execute queries with timeout, retry logic, and logging
-export const queryWithTimeout = async (text: string, params?: any[], timeoutMs: number = 15000, retries: number = 2) => {
+pool = global._pgPool!;
+
+// Helper function to execute queries with retry logic and logging (no forced timeout)
+export const queryWithTimeout = async (text: string, params?: any[], _timeoutMs: number = 0, retries: number = 0) => {
     const startTime = Date.now();
     let lastError: any;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-            const result = await Promise.race([
-                pool.query(text, params),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error(`Query timeout after ${timeoutMs}ms`)), timeoutMs)
-                )
-            ]) as any;
+            const result = await pool.query(text, params);
 
             const duration = Date.now() - startTime;
             if (duration > 1000) {

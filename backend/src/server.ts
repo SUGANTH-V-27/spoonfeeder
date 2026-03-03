@@ -135,29 +135,6 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
   next();
 });
 
-// Hard request timeout safety net - prevents infinite hanging requests
-// Vercel has different timeouts: 10s (Hobby), 60s (Pro), 900s (Enterprise)
-// Using 50s as a safe default (works for Pro tier, fails fast on Hobby)
-const TIMEOUT_MS = process.env.VERCEL ? 50000 : 25000; // 50s for Vercel, 25s for local development
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const timer = setTimeout(() => {
-    if (!res.headersSent) {
-      logger.warn('Request timeout - forcing response', {
-        method: req.method,
-        url: req.url,
-        timeout: `${TIMEOUT_MS}ms`
-      });
-      res.status(504).json({ error: 'Request timeout' });
-    }
-  }, TIMEOUT_MS);
-
-  // Clear timeout when response finishes (success or error)
-  res.on('finish', () => clearTimeout(timer));
-  res.on('close', () => clearTimeout(timer)); // Also clear on connection close
-  
-  next();
-});
-
 // CORS configuration - Allow all localhost ports and production domains
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -203,13 +180,13 @@ app.use(cors(corsOptions));
 
 // Body parsing with optimized settings
 app.use(express.json({
-    limit: '5mb', // Reduced from 10mb for better performance
+    limit: '100mb',
     strict: true
 }));
 app.use(express.urlencoded({
     extended: true,
-    limit: '5mb'
-})); // Limit payload size
+    limit: '100mb'
+}));
 
 
 // Apply caching to read-heavy endpoints (not auth)

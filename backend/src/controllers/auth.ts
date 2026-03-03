@@ -3,9 +3,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pool from "../db/connection";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
 import Joi from "joi";
 import winston from "winston";
+import { Resend } from "resend";
 import otpStore, { OtpPurpose } from "../services/otpStore";
 
 // Logger configuration - optimized for Vercel serverless
@@ -26,6 +26,18 @@ const logger = winston.createLogger({
     })
   ]
 });
+
+// Resend configuration for OTP and password reset emails
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const resend =
+  resendApiKey && typeof resendApiKey === "string"
+    ? new Resend(resendApiKey)
+    : null;
+
+const RESEND_FROM =
+  process.env.RESEND_FROM ||
+  process.env.EMAIL_FROM || // fallback to existing config
+  "Spoonfeeder <no-reply@example.com>";
 
 // Validation schemas
 const registerSchema = Joi.object({
@@ -137,16 +149,6 @@ const signupVerifySchema = Joi.object({
 const OTP_EXPIRY_MINUTES = 10;
 const generateOtp = () => (Math.floor(100000 + Math.random() * 900000)).toString();
 
-const createSignupTransporter = () => nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
 export const sendSignupOtp = async (req: Request, res: Response) => {
   let userEmail = '';
   try {
@@ -166,9 +168,9 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Clear any previous signup OTPs for this email
-    otpStore.clearByEmail(email, "signup");
+    await otpStore.clearByEmail(email, "signup");
     const challengeToken = crypto.randomUUID();
-    otpStore.set(challengeToken, {
+    await otpStore.set(challengeToken, {
       purpose: "signup",
       otpHash,
       expiresAt: Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,
@@ -177,14 +179,23 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
       metadata: { email, passwordHash }
     });
 
-    const transporter = createSignupTransporter();
-    await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM}" <${process.env.SMTP_USER}>`,
+    if (!resend) {
+      logger.error("Resend client is not configured. Missing RESEND_API_KEY.");
+      return res.status(500).json({ error: "Email service not configured" });
+    }
+
+    const { error: emailError } = await resend.emails.send({
+      from: RESEND_FROM,
       to: email,
       subject: "Verify your email for Spoonfeeder",
       text: `Your Spoonfeeder verification code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
       html: `<p>Hello,</p><p>Your Spoonfeeder verification code is <b>${otp}</b>.</p><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p><p>If you didn't request this, you can ignore this email.</p>`
     });
+
+    if (emailError) {
+      logger.error("Signup OTP send error via Resend", { error: emailError, email: userEmail });
+      return res.status(500).json({ error: "Failed to send OTP email" });
+    }
 
     return res.status(200).json({ message: "OTP sent", challengeToken, expiresInMinutes: OTP_EXPIRY_MINUTES });
   } catch (err) {
@@ -200,7 +211,7 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { otp, challengeToken } = value;
-    const record = otpStore.get(challengeToken);
+    const record = await otpStore.get(challengeToken);
     if (!record || record.purpose !== "signup") {
       return res.status(400).json({ error: "Invalid or expired signup token" });
     }
@@ -211,29 +222,29 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
     userEmail = email;
 
     if (!email || !passwordHash) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Invalid signup state" });
     }
 
     if (Date.now() > expiresAt) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "OTP expired" });
     }
 
     if (attempts >= maxAttempts) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Too many attempts. Please restart signup." });
     }
 
     const otpMatches = await bcrypt.compare(otp, otpHash);
     if (!otpMatches) {
-      otpStore.incrementAttempts(challengeToken);
+      await otpStore.incrementAttempts(challengeToken);
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
     const existingUser = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (existingUser.rows.length > 0) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "User already exists" });
     }
 
@@ -242,7 +253,7 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
       [email, passwordHash]
     );
 
-    otpStore.delete(challengeToken);
+    await otpStore.delete(challengeToken);
 
     const newUser = result.rows[0];
     const jwtsecret = process.env.JWT_SECRET;
@@ -343,9 +354,9 @@ export const sendPasswordResetOtp = async (req: Request, res: Response) => {
     const otpHash = await bcrypt.hash(otp, 10);
 
     // Clear previous reset OTPs for this email
-    otpStore.clearByEmail(email, "password-reset");
+    await otpStore.clearByEmail(email, "password-reset");
     const challengeToken = crypto.randomUUID();
-    otpStore.set(challengeToken, {
+    await otpStore.set(challengeToken, {
       purpose: "password-reset",
       otpHash,
       expiresAt: Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,
@@ -354,14 +365,23 @@ export const sendPasswordResetOtp = async (req: Request, res: Response) => {
       metadata: { email }
     });
 
-    const transporter = createSignupTransporter();
-    await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM}" <${process.env.SMTP_USER}>`,
+    if (!resend) {
+      logger.error("Resend client is not configured. Missing RESEND_API_KEY.");
+      return res.status(500).json({ error: "Email service not configured" });
+    }
+
+    const { error: emailError } = await resend.emails.send({
+      from: RESEND_FROM,
       to: email,
       subject: "Reset your Spoonfeeder password",
       text: `Your Spoonfeeder password reset code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
       html: `<p>Hello,</p><p>Your password reset code is <b>${otp}</b>.</p><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p><p>If you didn't request this, you can ignore this email.</p>`
     });
+
+    if (emailError) {
+      logger.error("Password reset OTP send error via Resend", { error: emailError, email });
+      return res.status(500).json({ error: "Failed to send OTP email" });
+    }
 
     return res.status(200).json({ message: "OTP sent", challengeToken, expiresInMinutes: OTP_EXPIRY_MINUTES });
   } catch (err) {
@@ -376,7 +396,7 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { otp, challengeToken, newPassword } = value;
-    const record = otpStore.get(challengeToken);
+    const record = await otpStore.get(challengeToken);
     if (!record || record.purpose !== "password-reset") {
       return res.status(400).json({ error: "Invalid or expired reset token" });
     }
@@ -384,29 +404,29 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
     const { metadata, expiresAt, attempts, maxAttempts, otpHash } = record;
     const email = metadata?.email;
     if (!email) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Invalid reset state" });
     }
 
     if (Date.now() > expiresAt) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "OTP expired" });
     }
 
     if (attempts >= maxAttempts) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Too many attempts. Please restart reset." });
     }
 
     const otpMatches = await bcrypt.compare(otp, otpHash);
     if (!otpMatches) {
-      otpStore.incrementAttempts(challengeToken);
+      await otpStore.incrementAttempts(challengeToken);
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
     const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (userRes.rows.length === 0) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -414,7 +434,7 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
     const userId = userRes.rows[0].id;
     await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, userId]);
 
-    otpStore.delete(challengeToken);
+    await otpStore.delete(challengeToken);
 
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });
@@ -434,7 +454,7 @@ export const verifyPasswordResetOtpOnly = async (req: Request, res: Response) =>
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { otp, challengeToken } = value;
-    const record = otpStore.get(challengeToken);
+    const record = await otpStore.get(challengeToken);
     if (!record || record.purpose !== "password-reset") {
       return res.status(400).json({ error: "Invalid or expired reset token" });
     }
@@ -442,23 +462,23 @@ export const verifyPasswordResetOtpOnly = async (req: Request, res: Response) =>
     const { metadata, expiresAt, attempts, maxAttempts, otpHash } = record;
     const email = metadata?.email;
     if (!email) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Invalid reset state" });
     }
 
     if (Date.now() > expiresAt) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "OTP expired" });
     }
 
     if (attempts >= maxAttempts) {
-      otpStore.delete(challengeToken);
+      await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "Too many attempts. Please restart reset." });
     }
 
     const otpMatches = await bcrypt.compare(otp, otpHash);
     if (!otpMatches) {
-      otpStore.incrementAttempts(challengeToken);
+      await otpStore.incrementAttempts(challengeToken);
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
@@ -466,7 +486,7 @@ export const verifyPasswordResetOtpOnly = async (req: Request, res: Response) =>
     const verifiedChallengeToken = crypto.randomUUID();
 
     // Store the verified token with a new purpose to indicate OTP was verified
-    otpStore.set(verifiedChallengeToken, {
+    await otpStore.set(verifiedChallengeToken, {
       purpose: "password-reset-verified" as OtpPurpose,
       otpHash: "", // No longer needed
       expiresAt: Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000, // Give them time to set password
@@ -476,7 +496,7 @@ export const verifyPasswordResetOtpOnly = async (req: Request, res: Response) =>
     });
 
     // Delete the old challenge token
-    otpStore.delete(challengeToken);
+    await otpStore.delete(challengeToken);
 
     return res.status(200).json({
       message: "OTP verified successfully",
@@ -496,7 +516,7 @@ export const completePasswordReset = async (req: Request, res: Response) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { verifiedChallengeToken, newPassword } = value;
-    const record = otpStore.get(verifiedChallengeToken);
+    const record = await otpStore.get(verifiedChallengeToken);
 
     if (!record || record.purpose !== "password-reset-verified") {
       return res.status(400).json({ error: "Invalid or expired session. Please verify OTP again." });
@@ -506,18 +526,18 @@ export const completePasswordReset = async (req: Request, res: Response) => {
     const email = metadata?.email;
 
     if (!email) {
-      otpStore.delete(verifiedChallengeToken);
+      await otpStore.delete(verifiedChallengeToken);
       return res.status(400).json({ error: "Invalid reset state" });
     }
 
     if (Date.now() > expiresAt) {
-      otpStore.delete(verifiedChallengeToken);
+      await otpStore.delete(verifiedChallengeToken);
       return res.status(400).json({ error: "Session expired. Please verify OTP again." });
     }
 
     const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (userRes.rows.length === 0) {
-      otpStore.delete(verifiedChallengeToken);
+      await otpStore.delete(verifiedChallengeToken);
       return res.status(404).json({ error: "User not found" });
     }
 
@@ -525,7 +545,7 @@ export const completePasswordReset = async (req: Request, res: Response) => {
     const userId = userRes.rows[0].id;
     await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, userId]);
 
-    otpStore.delete(verifiedChallengeToken);
+    await otpStore.delete(verifiedChallengeToken);
 
     const jwtsecret = process.env.JWT_SECRET;
     if (!jwtsecret) return res.status(500).json({ error: "Server configuration error" });

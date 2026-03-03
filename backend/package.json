@@ -28,6 +28,7 @@
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.12",
     "pg": "^8.16.3",
+    "resend": "^6.9.3",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
     "winston": "^3.19.0"

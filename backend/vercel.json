@@ -30,9 +30,5 @@
       ]
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 50
-    }
-  }
+  "functions": {}
 }

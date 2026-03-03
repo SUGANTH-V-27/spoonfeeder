@@ -12,9 +12,7 @@ export const getSubtopicContent = async (_req:Request,res:Response)=>{
 
         const result = await queryWithTimeout(
             'SELECT id, subtopic_id as "subtopicId", content_type as "contentType",content_order as "contentOrder", parent_content_id as "parentContentId",title, content, metadata , created_at FROM subtopic_content WHERE subtopic_id = $1 ORDER BY content_order ASC',
-            [subtopicId],
-            10000, // 10s timeout
-            2 // 2 retries
+            [subtopicId]
         );
 
         res.json(result.rows);
@@ -42,9 +40,7 @@ export const addSubtopicContent = async (_req:Request,res:Response)=>{
 
         const result = await queryWithTimeout(
             'INSERT INTO subtopic_content (subtopic_id, content_type, content_order, parent_content_id, title, content, metadata) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, subtopic_id as "subtopicId", content_type as "contentType", content_order as "contentOrder", parent_content_id as "parentContentId", title, content, metadata',
-            [subtopicId, contentType, contentOrder, parentContentId, title, content, metadata],
-            15000, // 15s timeout for INSERT operations
-            3 // 3 retries for critical operations
+            [subtopicId, contentType, contentOrder, parentContentId, title, content, metadata]
         );
 
         // Content changes must reflect everywhere, bump global cache version
@@ -66,9 +62,7 @@ export const deleteSubtopicContent = async(req: Request, res: Response) => {
 
     const result = await queryWithTimeout(
       "DELETE FROM subtopic_content WHERE id = $1 RETURNING id, title",
-      [id],
-      10000, // 10s timeout
-      2 // 2 retries
+      [id]
     );
 
     if (result.rows.length === 0) {
