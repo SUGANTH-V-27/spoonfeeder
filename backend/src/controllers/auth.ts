@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import pool from "../db/connection";
+import pool, { queryWithTimeout } from "../db/connection";
 import crypto from "crypto";
 import Joi from "joi";
 import winston from "winston";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import otpStore, { OtpPurpose } from "../services/otpStore";
 
 // Logger configuration - optimized for Vercel serverless
@@ -27,17 +27,22 @@ const logger = winston.createLogger({
   ]
 });
 
-// Resend configuration for OTP and password reset emails
-const resendApiKey = process.env.RESEND_API_KEY || "";
-const resend =
-  resendApiKey && typeof resendApiKey === "string"
-    ? new Resend(resendApiKey)
-    : null;
-
-const RESEND_FROM =
-  process.env.RESEND_FROM ||
-  process.env.EMAIL_FROM || // fallback to existing config
+// SMTP configuration (Gmail via nodemailer)
+const SMTP_FROM =
+  process.env.EMAIL_FROM ||
+  (process.env.SMTP_USER ? `"Spoonfeeder" <${process.env.SMTP_USER}>` : undefined) ||
   "Spoonfeeder <no-reply@example.com>";
+
+const createSmtpTransporter = () =>
+  nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
 
 // Validation schemas
 const registerSchema = Joi.object({
@@ -158,7 +163,7 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
     const { email, password } = value;
     userEmail = email;
 
-    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const existing = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: "User already exists" });
     }
@@ -179,23 +184,14 @@ export const sendSignupOtp = async (req: Request, res: Response) => {
       metadata: { email, passwordHash }
     });
 
-    if (!resend) {
-      logger.error("Resend client is not configured. Missing RESEND_API_KEY.");
-      return res.status(500).json({ error: "Email service not configured" });
-    }
-
-    const { error: emailError } = await resend.emails.send({
-      from: RESEND_FROM,
+    const transporter = createSmtpTransporter();
+    await transporter.sendMail({
+      from: SMTP_FROM,
       to: email,
       subject: "Verify your email for Spoonfeeder",
       text: `Your Spoonfeeder verification code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
       html: `<p>Hello,</p><p>Your Spoonfeeder verification code is <b>${otp}</b>.</p><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p><p>If you didn't request this, you can ignore this email.</p>`
     });
-
-    if (emailError) {
-      logger.error("Signup OTP send error via Resend", { error: emailError, email: userEmail });
-      return res.status(500).json({ error: "Failed to send OTP email" });
-    }
 
     return res.status(200).json({ message: "OTP sent", challengeToken, expiresInMinutes: OTP_EXPIRY_MINUTES });
   } catch (err) {
@@ -242,15 +238,17 @@ export const verifySignupOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
-    const existingUser = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const existingUser = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
     if (existingUser.rows.length > 0) {
       await otpStore.delete(challengeToken);
       return res.status(400).json({ error: "User already exists" });
     }
 
-    const result = await pool.query(
+    const result = await queryWithTimeout(
       "INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id,email",
-      [email, passwordHash]
+      [email, passwordHash],
+      0,
+      1
     );
 
     await otpStore.delete(challengeToken);
@@ -278,15 +276,17 @@ export const register = async (_req: Request, res: Response) => {
         // Extract only email and password (confirmPassword is validated but not stored)
         const { email, password } = value;
         userEmail = email;
-        const existingUser = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        const existingUser = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ error: "User already exists" });
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        const result = await pool.query(
+        const result = await queryWithTimeout(
             "INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id,email",
-            [email, passwordHash]
+            [email, passwordHash],
+            0,
+            1
         );
 
         const newUser = result.rows[0];
@@ -317,7 +317,7 @@ export const login = async (req: Request, res: Response) => {
         const { email, password } = value;
         userEmail = email;
 
-        const result = await pool.query("SELECT id, email, password_hash FROM users WHERE email = $1", [email]);
+        const result = await queryWithTimeout("SELECT id, email, password_hash FROM users WHERE email = $1", [email], 0, 1);
         if (result.rows.length === 0) return res.status(400).json({ error: "Invalid email or password" });
 
         const existingUser = result.rows[0];
@@ -345,7 +345,7 @@ export const sendPasswordResetOtp = async (req: Request, res: Response) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { email } = value;
-    const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const userRes = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -365,23 +365,14 @@ export const sendPasswordResetOtp = async (req: Request, res: Response) => {
       metadata: { email }
     });
 
-    if (!resend) {
-      logger.error("Resend client is not configured. Missing RESEND_API_KEY.");
-      return res.status(500).json({ error: "Email service not configured" });
-    }
-
-    const { error: emailError } = await resend.emails.send({
-      from: RESEND_FROM,
+    const transporter = createSmtpTransporter();
+    await transporter.sendMail({
+      from: SMTP_FROM,
       to: email,
       subject: "Reset your Spoonfeeder password",
       text: `Your Spoonfeeder password reset code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
       html: `<p>Hello,</p><p>Your password reset code is <b>${otp}</b>.</p><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p><p>If you didn't request this, you can ignore this email.</p>`
     });
-
-    if (emailError) {
-      logger.error("Password reset OTP send error via Resend", { error: emailError, email });
-      return res.status(500).json({ error: "Failed to send OTP email" });
-    }
 
     return res.status(200).json({ message: "OTP sent", challengeToken, expiresInMinutes: OTP_EXPIRY_MINUTES });
   } catch (err) {
@@ -424,7 +415,7 @@ export const verifyPasswordResetOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
-    const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const userRes = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
     if (userRes.rows.length === 0) {
       await otpStore.delete(challengeToken);
       return res.status(404).json({ error: "User not found" });
@@ -535,7 +526,7 @@ export const completePasswordReset = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Session expired. Please verify OTP again." });
     }
 
-    const userRes = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    const userRes = await queryWithTimeout("SELECT id FROM users WHERE email = $1", [email], 0, 2);
     if (userRes.rows.length === 0) {
       await otpStore.delete(verifiedChallengeToken);
       return res.status(404).json({ error: "User not found" });

@@ -21,9 +21,14 @@ if (!global._pgPool) {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    // Keep pool small on serverless to prevent connection storms
-    max: 5,
+    // Keep pool small on serverless to prevent connection storms.
+    // You can override via DB_POOL_MAX if needed.
+    // For serverless + pooler, smaller is safer. Override with DB_POOL_MAX if needed.
+    max: parseInt(process.env.DB_POOL_MAX || (process.env.VERCEL ? "1" : "10")),
     min: 0,
+    // Fail fast instead of hanging requests under load
+    connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT_MS || "2000"),
+    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || (process.env.VERCEL ? "5000" : "30000")),
     ssl: process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }
       : false,
@@ -54,18 +59,26 @@ export const queryWithTimeout = async (text: string, params?: any[], _timeoutMs:
             const duration = Date.now() - startTime;
 
             // Check if this is a connection error that we should retry
-            const isRetryableError = error.message.includes('Connection terminated') ||
-                                   error.message.includes('connection terminated') ||
-                                   error.message.includes('ECONNRESET') ||
-                                   error.message.includes('ENOTFOUND') ||
-                                   (error as any).code === 'ECONNREFUSED';
+            const msg = String(error?.message || "");
+            const code = (error as any)?.code;
+            const isRetryableError =
+              msg.includes('Connection terminated') ||
+              msg.includes('connection terminated') ||
+              msg.includes('ECONNRESET') ||
+              msg.includes('ETIMEDOUT') ||
+              msg.includes('timeout') ||
+              msg.includes('ENOTFOUND') ||
+              code === 'ECONNREFUSED' ||
+              code === '53300' || // too_many_connections
+              code === '57P01';  // admin_shutdown / connection drop
 
             if (isRetryableError && attempt < retries) {
-                console.warn(`Database connection error (attempt ${attempt + 1}/${retries + 1}), retrying in 1s...`, {
+                const backoffMs = 200 * (attempt + 1);
+                console.warn(`Database connection error (attempt ${attempt + 1}/${retries + 1}), retrying in ${backoffMs}ms...`, {
                     error: error.message,
                     query: text.substring(0, 100)
                 });
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
                 continue;
             }
 
