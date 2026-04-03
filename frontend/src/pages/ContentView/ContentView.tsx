@@ -46,6 +46,23 @@ const isIOS = () => {
          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
+/** Oldest first: created_at ASC, then content_order, then id */
+const sortVideosOldestFirst = (videos: any[]) => {
+  return [...videos].sort((a, b) => {
+    const rawA = a.createdAt ?? a.created_at;
+    const rawB = b.createdAt ?? b.created_at;
+    const tA = rawA ? new Date(rawA).getTime() : NaN;
+    const tB = rawB ? new Date(rawB).getTime() : NaN;
+    if (!Number.isNaN(tA) && !Number.isNaN(tB) && tA !== tB) return tA - tB;
+    if (!Number.isNaN(tA) && Number.isNaN(tB)) return -1;
+    if (Number.isNaN(tA) && !Number.isNaN(tB)) return 1;
+    const oA = a.contentOrder ?? a.content_order ?? 0;
+    const oB = b.contentOrder ?? b.content_order ?? 0;
+    if (oA !== oB) return oA - oB;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+};
+
 interface ContentViewProps {
   onNavigateToLogin: () => void;
   onNavigateToHeirarchy: () => void;
@@ -481,7 +498,7 @@ const ContentView: React.FC<ContentViewProps> = ({
         // Ensure cached content has all required array properties
         const safeCachedContent = {
           ...cachedContent,
-          videos: Array.isArray(cachedContent.videos) ? cachedContent.videos : [],
+          videos: sortVideosOldestFirst(Array.isArray(cachedContent.videos) ? cachedContent.videos : []),
           driveResources: Array.isArray(cachedContent.driveResources) ? cachedContent.driveResources : [],
           notesItems: Array.isArray(cachedContent.notesItems) ? cachedContent.notesItems : [],
           questions: Array.isArray(cachedContent.questions) ? cachedContent.questions : [],
@@ -583,7 +600,9 @@ const ContentView: React.FC<ContentViewProps> = ({
             contentMap.videos.push({
               id: item.id, // Store backend ID for deletion
               title: item.title || 'Video Content',
-              youtubeUrl: item.content
+              youtubeUrl: item.content,
+              createdAt: item.created_at ?? item.createdAt,
+              contentOrder: item.content_order ?? item.contentOrder ?? 0
             });
           }
           break;
@@ -613,10 +632,11 @@ const ContentView: React.FC<ContentViewProps> = ({
       }
     });
 
+    const videosOrdered = sortVideosOldestFirst(contentMap.videos);
     return {
       title: selectedSubtopic?.name || 'Content',
-      videos: contentMap.videos, // Support multiple videos
-      featuredVideo: contentMap.videos[0] || null, // Keep for backward compatibility
+      videos: videosOrdered, // Support multiple videos
+      featuredVideo: videosOrdered[0] || null, // Keep for backward compatibility
       driveResources: contentMap.driveResources,
       notes: contentMap.notes.map((n: any) => n.content).join('\n\n'),
       notesItems: contentMap.notes, // Store notes with IDs

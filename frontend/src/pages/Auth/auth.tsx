@@ -96,6 +96,27 @@ const WhatsAppIcon = () => {
     );
 };
 
+const openInstagramProfile = () => {
+    const appUrl = "instagram://user?username=spoonfeeder.team";
+    const webUrl = "https://www.instagram.com/spoonfeeder.team/";
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+    );
+
+    if (isMobile) {
+        // Try to open the Instagram app first
+        window.location.href = appUrl;
+        // After a short delay, fall back to web profile (in case app is not installed / deep link fails)
+        setTimeout(() => {
+            window.open(webUrl, "_blank", "noopener,noreferrer");
+        }, 1200);
+    } else {
+        // Desktop: just open the web profile
+        window.open(webUrl, "_blank", "noopener,noreferrer");
+    }
+};
+
 type Mode = "normal" | "email" | "password" | "error";
 type AuthMode = "login" | "register" | "forgot";
 
@@ -739,10 +760,15 @@ function Login({onNavigateToContent, onNavigateToCollegeDepartment, initialMode 
                             <div className="contact-section fade-in" style={{animationDelay: "1s"}}>
                                 <div className="contact-label">Contact us</div>
                                 <div className="contact-icons">
-                                    <a href="https://www.instagram.com/spoonfeeder.team/" target="_blank" rel="noopener noreferrer"
-                                       className="contact-icon" aria-label="Instagram">
+                                    <button
+                                        type="button"
+                                        className="contact-icon"
+                                        aria-label="Instagram"
+                                        onClick={openInstagramProfile}
+                                        style={{ background: "none", border: "none", padding: 0 }}
+                                    >
                                         <InstagramIcon/>
-                                    </a>
+                                    </button>
                                     <a href="https://mail.google.com/mail/?view=cm&to=teamspoonfeeder@gmail.com" className="contact-icon"
                                        aria-label="Email">
                                         <EmailIcon/>
@@ -1116,3 +1142,4 @@ function Doll({color, size, eye, mode, peek, back, front, side}: DollProps) {
         </div>
     );
 }
+
